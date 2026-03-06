@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6.67% 2.94%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.92%;
+    --primary: 240 5.88% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4.76% 95.88%;
+    --secondary-foreground: 240 5.88% 10%;
+    --muted: 240 4.76% 95.88%;
+    --muted-foreground: 240 3.83% 46.08%;
+    --accent: 240 4.76% 95.88%;
+    --accent-foreground: 240 5.88% 10%;
+    --destructive: 0 72% 50.98%;
+    --destructive-foreground: 0 0% 98.04%;
+    --border: 240 5.88% 90%;
+    --input: 268.24 42.5% 84.31%;
+    --ring: 240 5.03% 64.9%;
+    --radius: 0.5;
+  }
+
+  .dark {
+    --background: 240 10% 3.92%;
+    --foreground: 0 0% 98.04%;
+    --card: 240 30.36% 43.92%;
+    --card-foreground: 0 0% 98.04%;
+    --popover: 240 10% 3.92%;
+    --popover-foreground: 0 0% 98.04%;
+    --primary: 0 0% 98.04%;
+    --primary-foreground: 240 5.88% 10%;
+    --secondary: 240 2.44% 16.08%;
+    --secondary-foreground: 0 0% 98.04%;
+    --muted: 240 4.69% 25.1%;
+    --muted-foreground: 240 5.03% 64.9%;
+    --accent: 240 3.7% 15.88%;
+    --accent-foreground: 0 0% 98.04%;
+    --destructive: 0 62.03% 30.98%;
+    --destructive-foreground: 0 0% 98.04%;
+    --border: 240 3.7% 15.88%;
+    --input: 240 3.7% 15.88%;
+    --ring: 240 4.88% 83.92%;
+    --radius: 0.5;
+  }
+}
+
+@layer base {
+  /* --- Global 60Hz / zero-latency performance layer --- */
+
+  /* Enable GPU compositing on the root so the entire tree benefits */
+  html {
+    /* Smooth font rendering on all platforms */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Native scroll inertia */
+    scroll-behavior: smooth;
+    /* Critical: tell the browser text & layout are isolated */
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Prevent layout recalc from affecting painting */
+  body {
+    @apply bg-background text-foreground;
+    /* Promote body to its own stacking context */
+    transform: translateZ(0);
+    /* Allow browser to optimise repaints in each "area" independently */
+    contain: paint;
+  }
+
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+    /* Minimise costly reflow chains */
+    box-sizing: border-box;
+  }
+
+  /* Pointer – reduce touch-action latency on all interactive elements */
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Canvas elements – always on their own GPU layer */
+  canvas {
+    will-change: transform;
+    /* Prevent default touch scroll from fighting drawing */
+    touch-action: none;
+  }
+
+  /* Scroll containers – native smooth scroll + GPU compositing */
+  .overflow-y-auto,
+  .overflow-x-auto,
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    will-change: scroll-position;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+
+  .bg-300\% {
+    background-size: 300% 300%;
+  }
+
+  /* GPU-accelerated card hover – avoids layout shift */
+  .gpu-hover {
+    will-change: transform;
+    transform: translateZ(0);
+    transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .gpu-hover:hover {
+    transform: translate3d(0, -4px, 0);
+  }
+
+  /* Custom scrollbar – slim to avoid layout delta */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .animate-gradient {
+    animation: gradient 8s ease infinite;
+  }
+}
