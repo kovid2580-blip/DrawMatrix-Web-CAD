@@ -12,10 +12,17 @@
 
 ## Installation
 
-- Clone the repository: git clone `https://github.com/kovid2580-blip/DrawMatrix-web-autocad-engine-.git`
+- Clone the repository: git clone `https://github.com/kovid2580-blip/DrawMatrix-Web-CAD.git`
 - Install dependencies: `npm install` (or `bun install`)
 
 ## Development
 
 - Start the development server: `npm run dev` (or `bun dev`)
 - The application will be accessible at `http://localhost:3000` (default port)
+
+## Features
+
+- **Premium Video Meetings**: HD video, screen sharing, and chat powered by Stream Video SDK.
+- **Saved Projects**: Manage and access your historical architectural drawings with ease.
+- **Project Live Feed**: Real-time project activity and collaboration feedback.
+

@@ -3,11 +3,13 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Cpu, Hexagon, Layers, Monitor, Zap } from "lucide-react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 import ParticleBackground from "@/components/particle-background";
 
 const LandingPage = () => {
   const router = useRouter();
+  const { data: session } = useSession();
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col font-sans text-white selection:bg-cyan-500 selection:text-white bg-gradient-to-br from-blue-900 via-blue-600 to-cyan-400">
@@ -31,18 +33,37 @@ const LandingPage = () => {
         </div>
 
         <div className="flex items-center space-x-4">
-          <button
-            onClick={() => router.push("/login")}
-            className="text-white/80 hover:text-white px-4 py-2 text-sm font-bold transition-colors"
-          >
-            Log In
-          </button>
-          <button
-            onClick={() => router.push("/signup")}
-            className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
-          >
-            Sign Up
-          </button>
+          {session ? (
+            <>
+              <div className="text-white/80 px-4 py-2 text-sm font-bold flex items-center gap-3">
+                {session.user?.image && (
+                  <img src={session.user.image} alt="Profile" className="w-8 h-8 rounded-full border border-white/20" />
+                )}
+                <span>{session.user?.name}</span>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="bg-gray-900/50 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200 border border-white/10"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => signIn("google")}
+                className="text-white/80 hover:text-white px-4 py-2 text-sm font-bold transition-colors"
+              >
+                Log In
+              </button>
+              <button
+                onClick={() => signIn("google")}
+                className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
+              >
+                Sign Up
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -78,15 +99,27 @@ const LandingPage = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-6">
             <button
-              onClick={() => router.push("/signup")}
+              onClick={() => {
+                if (session) {
+                  router.push("/project-access");
+                } else {
+                  signIn("google", { callbackUrl: "/project-access" });
+                }
+              }}
               className="w-full md:w-auto px-10 py-5 rounded-full bg-white text-gray-900 font-bold text-lg hover:bg-cyan-50 transition-all shadow-xl hover:shadow-cyan-400/20 flex items-center justify-center space-x-2 transform hover:-translate-y-1"
             >
-              <span>Launch Studio</span>
+              <span>{session ? "Launch Studio" : "Get Started"}</span>
               <ArrowRight size={20} />
             </button>
 
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => {
+                if (session) {
+                  router.push("/project-access");
+                } else {
+                  signIn("google", { callbackUrl: "/project-access" });
+                }
+              }}
               className="w-full md:w-auto px-10 py-5 rounded-full bg-black/30 backdrop-blur-md text-white border border-white/20 font-bold text-lg hover:bg-black/40 transition-all flex items-center justify-center space-x-2"
             >
               <span>Enter Workspace</span>

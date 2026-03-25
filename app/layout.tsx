@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { CallProvider } from "@/providers/CallContext";
 import StreamClientProvider from "@/providers/StreamClientProvider";
 import { FloatingVideoCall } from "@/components/video-call/FloatingVideoCall";
+import { NextAuthProvider } from "@/providers/NextAuthProvider";
 
 import "./globals.css";
 
@@ -25,12 +26,14 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
           enableSystem
           disableTransitionOnChange
         >
-          <CallProvider>
-            <StreamClientProvider>
-              {children}
-              <FloatingVideoCall />
-            </StreamClientProvider>
-          </CallProvider>
+          <NextAuthProvider>
+            <CallProvider>
+              <StreamClientProvider>
+                {children}
+                <FloatingVideoCall />
+              </StreamClientProvider>
+            </CallProvider>
+          </NextAuthProvider>
         </ThemeProvider>
       </body>
     </html>
