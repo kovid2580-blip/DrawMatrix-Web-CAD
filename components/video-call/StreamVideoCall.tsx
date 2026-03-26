@@ -227,11 +227,43 @@ const ControlBar = ({
               Share the ID above so others can join this meeting.
             </div>
             <div className="border-t border-slate-700 pt-3">
-              <p className="text-slate-400 text-xs mb-2 font-semibold">
-                Device Settings
+              <p className="text-slate-400 text-xs mb-3 font-semibold uppercase tracking-wider">
+                Quick Share
               </p>
-              <DeviceSettings />
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Join my DrawMatrix meeting!\nID: ${roomName}\nLink: https://drawmatrixreference.vercel.app/video-call`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] text-xs font-bold transition-all border border-[#25D366]/20"
+                >
+                  WhatsApp
+                </a>
+                <a
+                  href={`mailto:?subject=DrawMatrix Meeting Invitation&body=${encodeURIComponent(`Join my architectural meeting on DrawMatrix!\n\nMeeting ID: ${roomName}\n\nJoin here: https://drawmatrixreference.vercel.app/video-call`)}`}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-bold transition-all border border-cyan-500/20"
+                >
+                  Email
+                </a>
+              </div>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'DrawMatrix Meeting',
+                      text: `Join my meeting! ID: ${roomName}`,
+                      url: 'https://drawmatrixreference.vercel.app/video-call'
+                    });
+                  } else {
+                    copyId();
+                  }
+                }}
+                className="w-full mt-2 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-medium transition-colors"
+              >
+                Other Options (System Share)
+              </button>
             </div>
+
           </div>
         </div>
       )}
