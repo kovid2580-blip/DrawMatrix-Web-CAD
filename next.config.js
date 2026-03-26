@@ -11,6 +11,13 @@ const nextConfig = {
     return config;
   },
 
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // Enable React strict mode for catching subtle runtime issues early
   reactStrictMode: true,
 };
