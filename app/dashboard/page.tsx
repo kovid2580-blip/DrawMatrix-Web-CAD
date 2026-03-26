@@ -3,7 +3,14 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Calendar, FolderKanban, LogOut, Save, Video } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  FolderKanban,
+  LogOut,
+  Save,
+  Video,
+} from "lucide-react";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -11,7 +18,8 @@ export default function Dashboard() {
   const cards = [
     {
       title: "Draw Sheet",
-      description: "Access your architectural designs and DrawMatrix workspace.",
+      description:
+        "Access your architectural designs and DrawMatrix workspace.",
       icon: <FolderKanban className="w-8 h-8 text-cyan-400" />,
       action: () => router.push("/editor?new=true"),
       bg: "bg-blue-950/50",

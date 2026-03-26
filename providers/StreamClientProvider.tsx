@@ -28,34 +28,42 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const userId = getAnonymousUserId();
+        const savedName = localStorage.getItem("drawmatrix_display_name");
+        const displayName = savedName || `User-${userId.slice(-4)}`;
+
+        console.log("[Stream] Initializing client for user:", userId, "as", displayName);
 
         const tokenProvider = async () => {
-            const res = await fetch("/api/stream/token", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId }),
-            });
-            const { token } = await res.json();
-            return token as string;
+            try {
+                const res = await fetch("/api/stream/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userId }),
+                });
+                if (!res.ok) throw new Error(`Token API failed with status ${res.status}`);
+                const { token } = await res.json();
+                return token as string;
+            } catch (err) {
+                console.error("[Stream] Token provider error:", err);
+                throw err;
+            }
         };
-
-        const displayName = localStorage.getItem("drawmatrix_display_name");
 
         const client = new StreamVideoClient({
             apiKey: API_KEY,
-            user: { id: userId, name: displayName || `User-${userId.slice(-4)}` },
+            user: { id: userId, name: displayName },
             tokenProvider,
         });
 
         setVideoClient(client);
 
         return () => {
+            console.log("[Stream] Cleaning up client");
             client.disconnectUser();
         };
     }, []);
 
     if (!videoClient) {
-        // Render children without Stream wrapper during SSR / before client init
         return <>{children}</>;
     }
 

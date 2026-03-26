@@ -2,70 +2,73 @@
 
 import React, { useState } from "react";
 import {
-  Trash2,
-  Type,
-  Box as Box3DIcon,
-  MousePointer2,
-  View,
-  Triangle,
-  Square,
-  Minus,
-  CornerUpRight,
-  Circle as CircleIcon,
-  Layout,
-  Hash,
-  Copy,
-  Move,
-  Scissors,
-  Ruler,
-  Maximize,
-  RotateCw,
-  Settings2,
-  ChevronDown,
-  Layers,
-  Eye,
-  MousePointer,
-  Rotate3d,
-  Maximize2,
-  Table as TableIcon,
-  Scaling,
-  FlipHorizontal,
-  Shapes,
   AlignLeft,
-  Divide,
-  UnfoldHorizontal,
+  Box as Box3DIcon,
   BoxSelect,
-  DoorOpen,
-  Tent,
-  Waves,
-  Cylinder as CylinderIcon,
-  Disc,
+  ChevronDown,
+  Circle as CircleIcon,
+  Clock,
   Combine,
   Construction,
-  Package,
-  Plus,
-  Zap,
+  Copy,
+  CornerUpRight,
+  Cylinder as CylinderIcon,
+  Disc,
+  Divide,
+  DoorOpen,
   Download,
   ExternalLink,
-  Search,
-  Sun,
-  Shield,
-  Clock,
-  Settings,
+  Eye,
+  FlipHorizontal,
   Grid as GridIcon,
-  Save,
-  RefreshCw,
+  Hash,
+  Layers,
+  Layout,
   LogOut,
-  Undo,
+  Maximize,
+  Maximize2,
+  Minus,
+  MousePointer,
+  MousePointer2,
+  Move,
+  Package,
+  Plus,
   Redo,
+  RefreshCw,
+  Rotate3d,
+  RotateCw,
+  Ruler,
+  Save,
+  Scaling,
+  Scissors,
+  Search,
+  Settings,
+  Settings2,
+  Shapes,
+  Shield,
   Sparkles,
+  Square,
+  Sun,
+  Table as TableIcon,
+  Tent,
+  Trash2,
+  Triangle,
+  Type,
+  Undo,
+  UnfoldHorizontal,
+  View,
+  Waves,
+  Zap,
 } from "lucide-react";
-import { useThreeStore, ThreeObjectType, ThreeObject } from "@/store";
-import { useAIStore } from "@/store/ai-store";
-import { socket } from "@/lib/socket";
 import { useRouter } from "next/navigation";
 
-const generateUUID = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+import { ThreeObject, ThreeObjectType, useThreeStore } from "@/store";
+import { useAIStore } from "@/store/ai-store";
+import { socket } from "@/lib/socket";
+
+const generateUUID = () =>
+  Math.random().toString(36).substring(2, 15) +
+  Math.random().toString(36).substring(2, 15);
 
 interface ToolButtonProps {
   icon: React.ReactNode;
@@ -75,22 +78,38 @@ interface ToolButtonProps {
   large?: boolean;
 }
 
-const ToolButton = ({ icon, label, active, onClick, large }: ToolButtonProps) => (
+const ToolButton = ({
+  icon,
+  label,
+  active,
+  onClick,
+  large,
+}: ToolButtonProps) => (
   <button
     onClick={onClick}
     className={`flex flex-col items-center justify-center group relative p-1 rounded hover:bg-gray-700 transition-colors ${active ? "bg-blue-900/50 text-blue-400" : "text-gray-300"}`}
     title={label}
   >
-    <div className={`flex items-center justify-center ${large ? "w-8 h-8 mb-1" : "w-5 h-5 mb-0.5"}`}>
+    <div
+      className={`flex items-center justify-center ${large ? "w-8 h-8 mb-1" : "w-5 h-5 mb-0.5"}`}
+    >
       {icon}
     </div>
-    <span className={`${large ? "text-[10px]" : "text-[9px]"} font-medium leading-tight text-center max-w-[60px] truncate`}>
+    <span
+      className={`${large ? "text-[10px]" : "text-[9px]"} font-medium leading-tight text-center max-w-[60px] truncate`}
+    >
       {label}
     </span>
   </button>
 );
 
-const RibbonGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const RibbonGroup = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
   <div className="flex flex-col border-r border-gray-700 px-2 last:border-r-0">
     <div className="flex-1 flex items-center space-x-1 min-h-[70px]">
       {children}
@@ -101,10 +120,28 @@ const RibbonGroup = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
-const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: string) => void }) => {
+const Ribbon = ({
+  activeTool,
+  setTool,
+}: {
+  activeTool: string;
+  setTool: (tool: string) => void;
+}) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Home");
-  const { viewMode, addObject, activeLayerId, setViewMode, cinematicMode, setCinematicMode, getSnapshot, projectName, projectId, undo, redo } = useThreeStore();
+  const {
+    viewMode,
+    addObject,
+    activeLayerId,
+    setViewMode,
+    cinematicMode,
+    setCinematicMode,
+    getSnapshot,
+    projectName,
+    projectId,
+    undo,
+    redo,
+  } = useThreeStore();
   const { toggleOpen: toggleAI, isOpen: isAIOpen } = useAIStore();
 
   const [autoSaveInterval, setAutoSaveInterval] = useState<number | null>(null);
@@ -132,7 +169,7 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
       id: projectId,
       name: projectName,
       content: snapshot,
-      lastModified: timestamp
+      lastModified: timestamp,
     };
 
     if (projectIndex > -1) {
@@ -145,7 +182,10 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
   };
 
   const handleSetAutoSave = () => {
-    const seconds = window.prompt("Enter auto-save interval in seconds (e.g. 30):", "60");
+    const seconds = window.prompt(
+      "Enter auto-save interval in seconds (e.g. 30):",
+      "60"
+    );
     if (seconds) {
       const val = parseInt(seconds);
       if (!isNaN(val) && val > 0) {
@@ -161,10 +201,28 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
   };
 
   const handleCreateObject = (type: ThreeObjectType, props: any = {}) => {
-    const userId = typeof window !== 'undefined' ? window.localStorage.getItem('cad_user_id') : 'guest';
+    const userId =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("cad_user_id")
+        : "guest";
 
     // Drafting tools require viewport interaction
-    const draftingTools: ThreeObjectType[] = ["line", "circle", "arc", "rect", "ellipse", "spline", "wall", "slab", "stairs", "roof", "door", "window", "text", "dimension"];
+    const draftingTools: ThreeObjectType[] = [
+      "line",
+      "circle",
+      "arc",
+      "rect",
+      "ellipse",
+      "spline",
+      "wall",
+      "slab",
+      "stairs",
+      "roof",
+      "door",
+      "window",
+      "text",
+      "dimension",
+    ];
 
     if (draftingTools.includes(type)) {
       setTool(type);
@@ -190,16 +248,16 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
       },
       properties: { ...props },
       color: "#ffffff",
-      lastModifiedBy: userId || 'unknown'
+      lastModifiedBy: userId || "unknown",
     };
 
     addObject(newObj);
     socket.emit("create_object", {
-      type: 'create_object',
+      type: "create_object",
       objectId: newObj.id,
       userId: userId,
       timestamp: Date.now(),
-      payload: newObj
+      payload: newObj,
     });
     setTool(type as any);
   };
@@ -207,15 +265,17 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
   return (
     <div className="h-24 bg-[#2b2d30] border-b border-black flex flex-col select-none">
       <div className="flex bg-[#1f2023] px-2 h-7 items-center space-x-1">
-        {["Home", "Architecture", "Annotate", "Insert", "View", "Manage"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 h-full text-[11px] font-medium transition-colors ${activeTab === tab ? "bg-[#2b2d30] text-white" : "text-gray-400 hover:text-gray-200"}`}
-          >
-            {tab}
-          </button>
-        ))}
+        {["Home", "Architecture", "Annotate", "Insert", "View", "Manage"].map(
+          (tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 h-full text-[11px] font-medium transition-colors ${activeTab === tab ? "bg-[#2b2d30] text-white" : "text-gray-400 hover:text-gray-200"}`}
+            >
+              {tab}
+            </button>
+          )
+        )}
         <div className="flex-1" />
         <div className="flex items-center space-x-2 mr-4">
           <button
@@ -231,7 +291,10 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
             title="Configure Auto-Save"
             className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all border ${autoSaveInterval ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" : "text-blue-200 hover:text-white bg-white/5 hover:bg-white/10 border-white/5"}`}
           >
-            <RefreshCw size={12} className={autoSaveInterval ? "animate-spin-slow" : ""} />
+            <RefreshCw
+              size={12}
+              className={autoSaveInterval ? "animate-spin-slow" : ""}
+            />
             {autoSaveInterval ? `Every ${autoSaveInterval}s` : "Auto Save"}
           </button>
 
@@ -247,17 +310,28 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
         <button
           onClick={toggleAI}
           title="AI Drawing Assistant (Ctrl+/)"
-          className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all border shadow-lg ${isAIOpen
+          className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all border shadow-lg ${
+            isAIOpen
               ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-500/50 shadow-cyan-500/20"
               : "text-cyan-300 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/20"
-            }`}
+          }`}
         >
           <Sparkles size={12} /> AI Assistant
         </button>
 
         <div className="flex items-center space-x-1 bg-black/30 p-0.5 rounded mr-2">
-          <button onClick={() => setViewMode("2D")} className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded ${viewMode === '2D' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>2D</button>
-          <button onClick={() => setViewMode("3D")} className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded ${viewMode === '3D' ? 'bg-blue-600 text-white' : 'text-gray-500'}`}>3D</button>
+          <button
+            onClick={() => setViewMode("2D")}
+            className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded ${viewMode === "2D" ? "bg-blue-600 text-white" : "text-gray-500"}`}
+          >
+            2D
+          </button>
+          <button
+            onClick={() => setViewMode("3D")}
+            className={`px-2 py-0.5 text-[9px] uppercase font-bold rounded ${viewMode === "3D" ? "bg-blue-600 text-white" : "text-gray-500"}`}
+          >
+            3D
+          </button>
         </div>
       </div>
 
@@ -266,37 +340,103 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
           <>
             <RibbonGroup title="Draft">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Minus size={18} />} label="Line" active={activeTool === "line"} onClick={() => handleCreateObject("line", { start: [0, 0, 0], end: [2, 2, 0] })} />
-                <ToolButton icon={<CircleIcon size={18} />} label="Circle" active={activeTool === "circle"} onClick={() => handleCreateObject("circle", { radius: 1 })} />
-                <ToolButton icon={<Square size={18} />} label="Rect" active={activeTool === "rect"} onClick={() => handleCreateObject("rect", { width: 4, height: 2 })} />
-                <ToolButton icon={<Triangle size={18} />} label="Arc" onClick={() => handleCreateObject("arc")} />
-                <ToolButton icon={<Waves size={18} />} label="Spline" onClick={() => handleCreateObject("spline")} />
-                <ToolButton icon={<Hash size={18} />} label="Hatch" onClick={() => handleCreateObject("hatch")} />
+                <ToolButton
+                  icon={<Minus size={18} />}
+                  label="Line"
+                  active={activeTool === "line"}
+                  onClick={() =>
+                    handleCreateObject("line", {
+                      start: [0, 0, 0],
+                      end: [2, 2, 0],
+                    })
+                  }
+                />
+                <ToolButton
+                  icon={<CircleIcon size={18} />}
+                  label="Circle"
+                  active={activeTool === "circle"}
+                  onClick={() => handleCreateObject("circle", { radius: 1 })}
+                />
+                <ToolButton
+                  icon={<Square size={18} />}
+                  label="Rect"
+                  active={activeTool === "rect"}
+                  onClick={() =>
+                    handleCreateObject("rect", { width: 4, height: 2 })
+                  }
+                />
+                <ToolButton
+                  icon={<Triangle size={18} />}
+                  label="Arc"
+                  onClick={() => handleCreateObject("arc")}
+                />
+                <ToolButton
+                  icon={<Waves size={18} />}
+                  label="Spline"
+                  onClick={() => handleCreateObject("spline")}
+                />
+                <ToolButton
+                  icon={<Hash size={18} />}
+                  label="Hatch"
+                  onClick={() => handleCreateObject("hatch")}
+                />
               </div>
             </RibbonGroup>
 
             <RibbonGroup title="Modeling">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Box3DIcon size={18} />} label="Box" active={activeTool === "box"} onClick={() => handleCreateObject("box")} />
-                <ToolButton icon={<CylinderIcon size={18} />} label="Cylinder" active={activeTool === "cylinder"} onClick={() => handleCreateObject("cylinder")} />
-                <ToolButton icon={<RotateCw size={18} />} label="Revolve" onClick={() => handleCreateObject("box")} />
-                <ToolButton icon={<Maximize2 size={18} />} label="Extrude" onClick={() => handleCreateObject("box")} />
+                <ToolButton
+                  icon={<Box3DIcon size={18} />}
+                  label="Box"
+                  active={activeTool === "box"}
+                  onClick={() => handleCreateObject("box")}
+                />
+                <ToolButton
+                  icon={<CylinderIcon size={18} />}
+                  label="Cylinder"
+                  active={activeTool === "cylinder"}
+                  onClick={() => handleCreateObject("cylinder")}
+                />
+                <ToolButton
+                  icon={<RotateCw size={18} />}
+                  label="Revolve"
+                  onClick={() => handleCreateObject("box")}
+                />
+                <ToolButton
+                  icon={<Maximize2 size={18} />}
+                  label="Extrude"
+                  onClick={() => handleCreateObject("box")}
+                />
               </div>
             </RibbonGroup>
 
             <RibbonGroup title="Modify">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Undo size={16} />} label="Undo" onClick={undo} />
-                <ToolButton icon={<Redo size={16} />} label="Redo" onClick={redo} />
+                <ToolButton
+                  icon={<Undo size={16} />}
+                  label="Undo"
+                  onClick={undo}
+                />
+                <ToolButton
+                  icon={<Redo size={16} />}
+                  label="Redo"
+                  onClick={redo}
+                />
                 <div className="w-[1px] h-8 bg-gray-700 mx-1" />
                 <ToolButton icon={<Move size={16} />} label="Move" />
                 <ToolButton icon={<Copy size={16} />} label="Copy" />
                 <ToolButton icon={<RotateCw size={16} />} label="Rotate" />
-                <ToolButton icon={<FlipHorizontal size={16} />} label="Mirror" />
+                <ToolButton
+                  icon={<FlipHorizontal size={16} />}
+                  label="Mirror"
+                />
                 <ToolButton icon={<Scaling size={16} />} label="Scale" />
                 <ToolButton icon={<Scissors size={16} />} label="Trim" />
                 <ToolButton icon={<AlignLeft size={16} />} label="Extend" />
-                <ToolButton icon={<UnfoldHorizontal size={16} />} label="Stretch" />
+                <ToolButton
+                  icon={<UnfoldHorizontal size={16} />}
+                  label="Stretch"
+                />
               </div>
             </RibbonGroup>
           </>
@@ -306,16 +446,43 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
           <>
             <RibbonGroup title="Structural">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Layout size={18} />} label="Wall" active={activeTool === "wall"} onClick={() => handleCreateObject("wall", { height: 2.5, thickness: 0.2 })} />
-                <ToolButton icon={<Square size={18} />} label="Slab" onClick={() => handleCreateObject("slab", { thickness: 0.2 })} />
-                <ToolButton icon={<Construction size={18} />} label="Stairs" onClick={() => handleCreateObject("stairs")} />
-                <ToolButton icon={<Tent size={18} />} label="Roof" onClick={() => handleCreateObject("roof")} />
+                <ToolButton
+                  icon={<Layout size={18} />}
+                  label="Wall"
+                  active={activeTool === "wall"}
+                  onClick={() =>
+                    handleCreateObject("wall", { height: 2.5, thickness: 0.2 })
+                  }
+                />
+                <ToolButton
+                  icon={<Square size={18} />}
+                  label="Slab"
+                  onClick={() => handleCreateObject("slab", { thickness: 0.2 })}
+                />
+                <ToolButton
+                  icon={<Construction size={18} />}
+                  label="Stairs"
+                  onClick={() => handleCreateObject("stairs")}
+                />
+                <ToolButton
+                  icon={<Tent size={18} />}
+                  label="Roof"
+                  onClick={() => handleCreateObject("roof")}
+                />
               </div>
             </RibbonGroup>
             <RibbonGroup title="Openings">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<DoorOpen size={18} />} label="Door" onClick={() => handleCreateObject("door")} />
-                <ToolButton icon={<Maximize2 size={18} />} label="Window" onClick={() => handleCreateObject("window")} />
+                <ToolButton
+                  icon={<DoorOpen size={18} />}
+                  label="Door"
+                  onClick={() => handleCreateObject("door")}
+                />
+                <ToolButton
+                  icon={<Maximize2 size={18} />}
+                  label="Window"
+                  onClick={() => handleCreateObject("window")}
+                />
               </div>
             </RibbonGroup>
             <RibbonGroup title="Views">
@@ -331,13 +498,21 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
           <>
             <RibbonGroup title="Text">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Type size={18} />} label="Text" onClick={() => handleCreateObject("text")} />
+                <ToolButton
+                  icon={<Type size={18} />}
+                  label="Text"
+                  onClick={() => handleCreateObject("text")}
+                />
                 <ToolButton icon={<AlignLeft size={18} />} label="MText" />
               </div>
             </RibbonGroup>
             <RibbonGroup title="Dimensions">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Ruler size={18} />} label="Linear" onClick={() => handleCreateObject("dimension")} />
+                <ToolButton
+                  icon={<Ruler size={18} />}
+                  label="Linear"
+                  onClick={() => handleCreateObject("dimension")}
+                />
                 <ToolButton icon={<CircleIcon size={18} />} label="Radius" />
               </div>
             </RibbonGroup>
@@ -375,7 +550,12 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
                 <ToolButton icon={<Move size={18} />} label="Pan" />
                 <ToolButton icon={<Search size={18} />} label="Zoom" />
                 <ToolButton
-                  icon={<Maximize2 size={18} className={cinematicMode ? "text-cyan-400" : ""} />}
+                  icon={
+                    <Maximize2
+                      size={18}
+                      className={cinematicMode ? "text-cyan-400" : ""}
+                    />
+                  }
                   label="Present"
                   onClick={() => setCinematicMode(!cinematicMode)}
                   active={cinematicMode}
@@ -384,8 +564,18 @@ const Ribbon = ({ activeTool, setTool }: { activeTool: string; setTool: (tool: s
             </RibbonGroup>
             <RibbonGroup title="Display">
               <div className="flex items-center space-x-1">
-                <ToolButton icon={<Eye size={18} />} label="Wire" onClick={() => setViewMode("2D")} active={viewMode === "2D"} />
-                <ToolButton icon={<Sun size={18} />} label="Shaded" onClick={() => setViewMode("3D")} active={viewMode === "3D"} />
+                <ToolButton
+                  icon={<Eye size={18} />}
+                  label="Wire"
+                  onClick={() => setViewMode("2D")}
+                  active={viewMode === "2D"}
+                />
+                <ToolButton
+                  icon={<Sun size={18} />}
+                  label="Shaded"
+                  onClick={() => setViewMode("3D")}
+                  active={viewMode === "3D"}
+                />
                 <ToolButton icon={<GridIcon size={18} />} label="Grid" />
               </div>
             </RibbonGroup>

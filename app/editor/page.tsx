@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Triangle } from "lucide-react";
@@ -9,9 +9,7 @@ import Ribbon from "@/components/editor/ribbon";
 import { CommandBar, StatusBar } from "@/components/editor/bottom-bar";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { AIPromptPanel } from "@/components/editor/ai-prompt-panel";
-
 import { LayerManager } from "@/components/editor/layer-manager";
-
 import { useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
 
@@ -27,7 +25,16 @@ const ThreeLayer = dynamic(() => import("@/components/editor/three-layer"), {
 export default function EditorPage() {
   const [tool, setTool] = useState("line");
   const searchParams = useSearchParams();
-  const { setProjectInfo, projectName, setObjects, setLayers, setActiveLayer, setSelectedObjectId, undo, redo } = useThreeStore();
+  const {
+    setProjectInfo,
+    projectName,
+    setObjects,
+    setLayers,
+    setActiveLayer,
+    setSelectedObjectId,
+    undo,
+    redo,
+  } = useThreeStore();
   const { toggleOpen: toggleAI, setOpen: setAIOpen } = useAIStore();
 
   useEffect(() => {
@@ -65,7 +72,9 @@ export default function EditorPage() {
     const pid = searchParams.get("projectId");
 
     if (isNew) {
-      const name = window.prompt("Enter a name for your new sheet:", "Untitled Sheet") || "Untitled Sheet";
+      const name =
+        window.prompt("Enter a name for your new sheet:", "Untitled Sheet") ||
+        "Untitled Sheet";
       const newId = Math.random().toString(36).substring(2, 9);
       setProjectInfo(newId, name);
     } else if (pid) {
@@ -92,7 +101,9 @@ export default function EditorPage() {
         </div>
         <div className="flex items-center space-x-2 text-gray-400">
           <span className="text-white">Matrix::Draft Pro</span>
-          <span className="opacity-50">{projectName || "Untitled_Sheet"}.dmx</span>
+          <span className="opacity-50">
+            {projectName || "Untitled_Sheet"}.dmx
+          </span>
         </div>
       </div>
 

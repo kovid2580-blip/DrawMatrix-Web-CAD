@@ -12,7 +12,7 @@
 
 ## Installation
 
-- Clone the repository: git clone `https://github.com/kovid2580-blip/DrawMatrix-Web-CAD.git`
+- Clone the repository: git clone `https://github.com/kovid2580-blip/DrawMatrix-web-autocad-engine-.git`
 - Install dependencies: `npm install` (or `bun install`)
 
 ## Development
@@ -20,9 +20,24 @@
 - Start the development server: `npm run dev` (or `bun dev`)
 - The application will be accessible at `http://localhost:3000` (default port)
 
-## Features
+## Collaboration & Deployment
 
-- **Premium Video Meetings**: HD video, screen sharing, and chat powered by Stream Video SDK.
-- **Saved Projects**: Manage and access your historical architectural drawings with ease.
-- **Project Live Feed**: Real-time project activity and collaboration feedback.
+To use the tool with others, you must deploy it online:
 
+### 1. Frontend (Next.js)
+- **Host**: [Vercel](https://vercel.com/) (recommended).
+- Copy all environment variables from `.env.local` to Vercel's Dashboard.
+
+### 2. Signaling Server (Socket.io)
+- **Host**: [Railway](https://railway.app/) or [Render](https://render.com/).
+- Deploy the `/server` folder.
+- Update the client’s `SOCKET_URL` to point to your public server.
+
+## Google Colab Integration
+
+If you are using a separate **CAD Engine** on Google Colab:
+1. Run your Colab notebook and expose the Flask/FastAPI server via `ngrok`.
+2. Copy the ngrok URL.
+3. Add it to `.env.local` (or Vercel environmental variables):
+   `NEXT_PUBLIC_CAD_ENGINE_URL=https://your-ngrok-id.ngrok-free.app`
+4. The system will now have the hooks to call your external AI/CAD engine.

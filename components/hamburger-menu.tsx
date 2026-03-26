@@ -18,9 +18,7 @@ const HamburgerMenu = () => {
           <Menu />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>
-            DRAWMATRIX
-          </DropdownMenuLabel>
+          <DropdownMenuLabel>DRAWMATRIX</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <ThemeToggle />
         </DropdownMenuContent>

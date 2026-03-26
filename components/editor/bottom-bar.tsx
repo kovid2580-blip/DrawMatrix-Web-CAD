@@ -1,6 +1,7 @@
 "use client";
 
 import { Grid, Lock, Maximize, MousePointer2, Settings } from "lucide-react";
+
 import { useThreeStore } from "@/store";
 
 export const CommandBar = () => {
@@ -23,7 +24,9 @@ export const StatusBar = () => {
   return (
     <div className="h-6 bg-[#1f2023] border-t border-gray-700 flex items-center justify-between px-2 text-[10px] text-gray-400 select-none">
       <div className="flex items-center space-x-4">
-        <span className="min-w-[150px]">{x.toFixed(2)}, {y.toFixed(2)}, {z.toFixed(2)}</span>
+        <span className="min-w-[150px]">
+          {x.toFixed(2)}, {y.toFixed(2)}, {z.toFixed(2)}
+        </span>
         <div className="w-px h-3 bg-gray-600"></div>
         <div className="flex space-x-2">
           <button className="hover:text-white flex items-center space-x-1">

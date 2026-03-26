@@ -36,7 +36,10 @@ const Login = () => {
       // Simulate successful login
       if (typeof window !== "undefined") {
         localStorage.setItem("dm_auth_mock", "true");
-        localStorage.setItem("drawmatrix_display_name", formData.email.split('@')[0]);
+        localStorage.setItem(
+          "drawmatrix_display_name",
+          formData.email.split("@")[0]
+        );
       }
       router.push("/project-info");
     } else {

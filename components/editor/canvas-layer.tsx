@@ -137,7 +137,11 @@ export default function CanvasLayer({ tool, setTool }: CanvasLayerProps) {
           if (tool === "line") {
             return { ...prev, points: [startPos.x, startPos.y, p.x, p.y] };
           } else if (tool === "rect") {
-            return { ...prev, width: p.x - startPos.x, height: p.y - startPos.y };
+            return {
+              ...prev,
+              width: p.x - startPos.x,
+              height: p.y - startPos.y,
+            };
           }
           return prev;
         });

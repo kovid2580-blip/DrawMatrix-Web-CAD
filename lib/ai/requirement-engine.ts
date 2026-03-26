@@ -4,34 +4,37 @@
  */
 
 export interface RoomRequirement {
-    type: string;
-    width: number;
-    depth: number;
+  type: string;
+  width: number;
+  depth: number;
 }
 
 export const ARCHITECTURAL_DEFAULTS = {
-    living_room: { width: 5, depth: 4 },
-    bedroom: { width: 4, depth: 3 },
-    kitchen: { width: 3, depth: 3 },
-    bathroom: { width: 2, depth: 2 },
-    office: { width: 4, depth: 4 },
-    meeting_room: { width: 5, depth: 4 },
-    classroom: { width: 10, depth: 8 },
-    corridor_width: 1.2,
-    wall_thickness: 0.2,
-    entrance_door_width: 1.2,
-    room_door_width: 0.9,
-    standard_window_width: 1.5,
-    wall_height: 2.8
+  living_room: { width: 5, depth: 4 },
+  bedroom: { width: 4, depth: 3 },
+  kitchen: { width: 3, depth: 3 },
+  bathroom: { width: 2, depth: 2 },
+  office: { width: 4, depth: 4 },
+  meeting_room: { width: 5, depth: 4 },
+  classroom: { width: 10, depth: 8 },
+  corridor_width: 1.2,
+  wall_thickness: 0.2,
+  entrance_door_width: 1.2,
+  room_door_width: 0.9,
+  standard_window_width: 1.5,
+  wall_height: 2.8,
 };
 
 export function getRoomRequirements(roomTypes: string[]): RoomRequirement[] {
-    return roomTypes.map(type => {
-        const defaults = (ARCHITECTURAL_DEFAULTS as any)[type] || { width: 4, depth: 4 };
-        return {
-            type,
-            width: defaults.width,
-            depth: defaults.depth
-        };
-    });
+  return roomTypes.map((type) => {
+    const defaults = (ARCHITECTURAL_DEFAULTS as any)[type] || {
+      width: 4,
+      depth: 4,
+    };
+    return {
+      type,
+      width: defaults.width,
+      depth: defaults.depth,
+    };
+  });
 }

@@ -29,15 +29,18 @@ const LandingPage = () => {
           </span>
         </div>
 
-        <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-blue-100 tracking-wide">
-        </div>
+        <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-blue-100 tracking-wide"></div>
 
         <div className="flex items-center space-x-4">
           {session ? (
             <>
               <div className="text-white/80 px-4 py-2 text-sm font-bold flex items-center gap-3">
                 {session.user?.image && (
-                  <img src={session.user.image} alt="Profile" className="w-8 h-8 rounded-full border border-white/20" />
+                  <img
+                    src={session.user.image}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full border border-white/20"
+                  />
                 )}
                 <span>{session.user?.name}</span>
               </div>
@@ -94,7 +97,8 @@ const LandingPage = () => {
           <p className="text-xl md:text-2xl text-blue-100/70 mb-12 max-w-3xl mx-auto leading-relaxed font-medium">
             Draw Matrix is the next-generation architectural workspace.
             <br className="hidden md:block" />
-            Zero-latency collaboration, infinite 3D canvas, and parametric modeling.
+            Zero-latency collaboration, infinite 3D canvas, and parametric
+            modeling.
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-6">
@@ -164,9 +168,7 @@ const FeatureCard = ({
   desc: string;
   delay: number;
 }) => (
-  <div
-    className="glass-panel p-8 rounded-3xl text-left hover:-translate-y-2 transition-transform duration-300 bg-white/10 backdrop-blur-md border border-white/20"
-  >
+  <div className="glass-panel p-8 rounded-3xl text-left hover:-translate-y-2 transition-transform duration-300 bg-white/10 backdrop-blur-md border border-white/20">
     <div className="mb-6 p-4 bg-gray-50 rounded-2xl inline-block shadow-inner">
       {icon}
     </div>
