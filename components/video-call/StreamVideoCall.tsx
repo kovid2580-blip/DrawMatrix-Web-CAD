@@ -558,8 +558,8 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
 
     try {
       // Reconnect with the real display name so all participants see it correctly
-      await (client as any).disconnectUser();
-      await (client as any).connectUser({ id: userId, name }, async () => {
+      await client.disconnectUser();
+      await client.connectUser({ id: userId, name }, async () => {
         const res = await fetch("/api/stream/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

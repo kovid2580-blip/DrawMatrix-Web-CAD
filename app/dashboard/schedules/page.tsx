@@ -2,13 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   Calendar,
   ChevronDown,
   MessageSquare,
   Send,
-  User,
+  User as UserIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -21,42 +22,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { socket } from "@/lib/socket";
 
-const TEAM_MEMBERS = [
-  { id: "1", name: "Alice Johnson" },
-  { id: "2", name: "Bob Smith" },
-  { id: "3", name: "Charlie Davis" },
-  { id: "4", name: "Diana Prince" },
-];
+const ROOM_ID = "1234567890";
 
 export default function SchedulesPage() {
   const router = useRouter();
-  const { presences } = useThreeStore();
+  const { data: session } = useSession();
+  const { presences, updatePresence, removePresence } = useThreeStore();
+  const [allUsers, setAllUsers] = useState<{ _id: string; username: string; email: string }[]>([]);
+  
+  // Use environment variable for API base in production
+  const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+  
   const [schedules, setSchedules] = useState<
     { id: string; title: string; date: string; time: string; type: string }[]
   >([]);
   const [messages, setMessages] = useState<
     { id: string; user: string; text: string; time: string }[]
-  >([
-    {
-      id: "1",
-      user: "Alice",
-      text: "Excited for the design review!",
-      time: "09:45 AM",
-    },
-    {
-      id: "2",
-      user: "Bob",
-      text: "I'll be sharing the latest mockups.",
-      time: "10:15 AM",
-    },
-    {
-      id: "3",
-      user: "Charlie",
-      text: "Great, looking forward to it.",
-      time: "11:00 AM",
-    },
-  ]);
+  >([]);
   const [newMessage, setNewMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -66,41 +50,112 @@ export default function SchedulesPage() {
 
   const isInitialLoad = React.useRef(true);
 
+  // Fetch all registered users
+  const fetchUsers = useCallback(() => {
+    fetch(`${API_BASE_URL}/get-users`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAllUsers(data);
+      })
+      .catch((err) => console.error("Failed to fetch users:", err));
+  }, [API_BASE_URL]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  // Socket setup for presence
+  useEffect(() => {
+    if (!session?.user) return;
+
+    if (!socket.connected) {
+        socket.connect();
+    }
+    
+    socket.emit("join_project", ROOM_ID);
+
+    const userPresence = {
+        id: session.user.email || Math.random().toString(),
+        name: session.user.name || "Anonymous",
+        color: "#" + Math.floor(Math.random()*16777215).toString(16),
+        cursor: null,
+        cameraPosition: [0, 5, 10]
+    };
+
+    socket.emit("presence-update", {
+        projectId: ROOM_ID,
+        userId: userPresence.id,
+        presence: userPresence
+    });
+
+    socket.on("presence-update", (data) => {
+        updatePresence(data.userId, data.presence);
+    });
+
+    socket.on("presence-disconnect", (userId) => {
+        removePresence(userId);
+    });
+
+    socket.on("room_presence_list", (presenceMap: any) => {
+        Object.entries(presenceMap).forEach(([sid, data]: [string, any]) => {
+            updatePresence(data.userId, data);
+        });
+    });
+
+    return () => {
+        // We might want to keep the socket connected if navigating within dashboard
+        // but for now let's keep it simple
+    };
+  }, [session, updatePresence, removePresence]);
+
   // Load from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("drawmatrix_schedules");
-    if (saved) {
+    const savedSchedules = localStorage.getItem("drawmatrix_schedules");
+    if (savedSchedules) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setSchedules(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to parse schedules:", e);
-      }
+        const parsed = JSON.parse(savedSchedules);
+        if (Array.isArray(parsed)) setSchedules(parsed);
+      } catch (e) { console.error(e); }
     }
+
+    const savedMessages = localStorage.getItem(`drawmatrix_messages_${ROOM_ID}`);
+    if (savedMessages) {
+        try {
+            const parsed = JSON.parse(savedMessages);
+            if (Array.isArray(parsed)) setMessages(parsed);
+        } catch (e) { console.error(e); }
+    } else {
+        setMessages([
+            { id: "1", user: "System", text: "Welcome to the project feed!", time: "09:00 AM" }
+        ]);
+    }
+    
     isInitialLoad.current = false;
   }, []);
 
-  // Save to localStorage
+  // Save schedules to localStorage
   useEffect(() => {
     if (!isInitialLoad.current) {
       localStorage.setItem("drawmatrix_schedules", JSON.stringify(schedules));
     }
   }, [schedules]);
 
-  // Cleanup logic
+  // Save messages to localStorage
+  useEffect(() => {
+    if (!isInitialLoad.current) {
+      localStorage.setItem(`drawmatrix_messages_${ROOM_ID}`, JSON.stringify(messages));
+    }
+  }, [messages]);
+
   const cleanupSchedules = useCallback(() => {
     const now = new Date();
     setSchedules((prev) => {
       const filtered = prev.filter((s) => {
         if (!s.date || !s.time) return true;
         const scheduleTime = new Date(`${s.date}T${s.time}`);
-        // If invalid date, keep it just in case
         if (isNaN(scheduleTime.getTime())) return true;
         return scheduleTime > now;
       });
-      // Only update if something was actually filtered to avoid infinite loops/unnecessary saves
       return filtered.length === prev.length ? prev : filtered;
     });
   }, []);
@@ -108,15 +163,15 @@ export default function SchedulesPage() {
   useEffect(() => {
     if (isInitialLoad.current) return;
     cleanupSchedules();
-    const interval = setInterval(cleanupSchedules, 60000); // Check every minute
+    const interval = setInterval(cleanupSchedules, 60000);
     return () => clearInterval(interval);
   }, [cleanupSchedules]);
 
   const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !session?.user) return;
     const msg = {
       id: Date.now().toString(),
-      user: "Me",
+      user: session.user.name || "Anonymous",
       text: newMessage,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -147,6 +202,11 @@ export default function SchedulesPage() {
   const handleDeleteSchedule = (id: string) => {
     setSchedules(schedules.filter((s) => s.id !== id));
   };
+
+  // Filter offline users (all users minus those currently in presences)
+  const offlineUsers = allUsers.filter(
+    (u) => !Object.values(presences).some((p) => p.id === u.email)
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-white p-8">
@@ -231,7 +291,7 @@ export default function SchedulesPage() {
                   className="w-64 bg-slate-900/95 backdrop-blur-xl border-white/10 p-2 shadow-2xl"
                 >
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-500 px-2 py-1.5">
-                    Active Now
+                    Active Now (Room {ROOM_ID})
                   </DropdownMenuLabel>
                   {Object.values(presences).length > 0 ? (
                     Object.values(presences).map((user) => (
@@ -242,16 +302,16 @@ export default function SchedulesPage() {
                         <div className="flex items-center gap-3">
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black"
-                            style={{ backgroundColor: user.color }}
+                            style={{ backgroundColor: user.color || "#3b82f6" }}
                           >
-                            {user.name[0]}
+                            {user.name ? user.name[0] : "?"}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-white">
-                              {user.name}
+                              {user.name} {user.id === session?.user?.email ? "(You)" : ""}
                             </span>
-                            <span className="text-[9px] text-slate-500 uppercase tracking-tighter">
-                              Active in Editor
+                            <span className="text-[9px] text-green-500 uppercase tracking-tighter">
+                              Online
                             </span>
                           </div>
                         </div>
@@ -259,42 +319,43 @@ export default function SchedulesPage() {
                       </DropdownMenuItem>
                     ))
                   ) : (
-                    <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
-                      No other editors online
+                    <div className="px-2 py-3 text-xs text-slate-600 italic text-center">
+                      Connecting to signaling server...
                     </div>
                   )}
 
                   <DropdownMenuSeparator className="bg-white/5 my-2" />
 
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-500 px-2 py-1.5">
-                    Offline
+                    Offline Members
                   </DropdownMenuLabel>
-                  {TEAM_MEMBERS.filter(
-                    (m) =>
-                      !Object.values(presences).find((p) =>
-                        p.name.includes(m.name)
-                      )
-                  ).map((member) => (
-                    <DropdownMenuItem
-                      key={member.id}
-                      className="flex items-center justify-between p-2 rounded-lg opacity-50 grayscale"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-400">
-                          {member.name[0]}
+                  {offlineUsers.length > 0 ? (
+                    offlineUsers.map((user) => (
+                      <DropdownMenuItem
+                        key={user._id}
+                        className="flex items-center justify-between p-2 rounded-lg opacity-50 grayscale"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                            {user.username[0]}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-400">
+                              {user.username}
+                            </span>
+                            <span className="text-[9px] text-slate-600 uppercase tracking-tighter">
+                              Offline
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-400">
-                            {member.name}
-                          </span>
-                          <span className="text-[9px] text-slate-600 uppercase tracking-tighter">
-                            Away
-                          </span>
-                        </div>
-                      </div>
-                      <div className="w-2 h-2 rounded-full bg-slate-700" />
-                    </DropdownMenuItem>
-                  ))}
+                        <div className="w-2 h-2 rounded-full bg-slate-700" />
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
+                      All members are online
+                    </div>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -321,7 +382,7 @@ export default function SchedulesPage() {
                       >
                         <td className="px-4 py-3 align-top">
                           <span
-                            className={`font-bold ${m.user === "Me" ? "text-blue-400" : "text-slate-300"}`}
+                            className={`font-bold ${m.user === session?.user?.name ? "text-blue-400" : "text-slate-300"}`}
                           >
                             {m.user}
                           </span>

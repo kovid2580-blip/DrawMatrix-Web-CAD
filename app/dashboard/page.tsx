@@ -11,6 +11,7 @@ import {
   Save,
   Video,
 } from "lucide-react";
+import { signOut } from "next-auth/react";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function Dashboard() {
       {/* Top Right Logout */}
       <div className="absolute top-6 right-6 z-20">
         <button
-          onClick={() => router.push("/login")}
+          onClick={() => signOut({ callbackUrl: "/" })}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium text-slate-300 hover:text-white"
         >
           <LogOut size={16} />
