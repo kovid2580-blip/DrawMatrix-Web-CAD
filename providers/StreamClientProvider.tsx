@@ -35,13 +35,19 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
 
         const tokenProvider = async () => {
             try {
+                console.log("[Stream] Fetching token for user:", userId);
                 const res = await fetch("/api/stream/token", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ userId }),
                 });
-                if (!res.ok) throw new Error(`Token API failed with status ${res.status}`);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error("[Stream] Token API failed. Status:", res.status, "Body:", errorText);
+                    throw new Error(`Token API failed with status ${res.status}`);
+                }
                 const { token } = await res.json();
+                console.log("[Stream] Token received successfully");
                 return token as string;
             } catch (err) {
                 console.error("[Stream] Token provider error:", err);
@@ -53,6 +59,10 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
             apiKey: API_KEY,
             user: { id: userId, name: displayName },
             tokenProvider,
+        });
+
+        client.on("connection.state_changed", (event) => {
+            console.log("[Stream] Connection state changed:", event.body.state);
         });
 
         setVideoClient(client);
