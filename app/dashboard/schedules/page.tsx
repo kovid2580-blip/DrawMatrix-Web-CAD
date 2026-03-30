@@ -38,6 +38,9 @@ export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<
     { id: string; title: string; date: string; time: string; type: string }[]
   >([]);
+  const [allUsers, setAllUsers] = useState<{ _id: string; username: string; email: string }[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "error">("connecting");
+  
   const [messages, setMessages] = useState<
     { id: string; user: string; text: string; time: string }[]
   >([]);
@@ -52,12 +55,22 @@ export default function SchedulesPage() {
 
   // Fetch all registered users
   const fetchUsers = useCallback(() => {
+    setConnectionStatus("connecting");
     fetch(`${API_BASE_URL}/get-users`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setAllUsers(data);
+      .then((res) => {
+        if (!res.ok) throw new Error("Server response not ok");
+        return res.json();
       })
-      .catch((err) => console.error("Failed to fetch users:", err));
+      .then((data) => {
+        if (Array.isArray(data)) {
+            setAllUsers(data);
+            setConnectionStatus("connected");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch users:", err);
+        setConnectionStatus("error");
+      });
   }, [API_BASE_URL]);
 
   useEffect(() => {
@@ -329,31 +342,37 @@ export default function SchedulesPage() {
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-500 px-2 py-1.5">
                     Offline Members
                   </DropdownMenuLabel>
-                  {offlineUsers.length > 0 ? (
-                    offlineUsers.map((user) => (
-                      <DropdownMenuItem
-                        key={user._id}
-                        className="flex items-center justify-between p-2 rounded-lg opacity-50 grayscale"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-400">
-                            {user.username[0]}
+                  {allUsers.length > 0 ? (
+                    offlineUsers.length > 0 ? (
+                      offlineUsers.map((user) => (
+                        <DropdownMenuItem
+                          key={user._id}
+                          className="flex items-center justify-between p-2 rounded-lg opacity-50 grayscale"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                              {user.username ? user.username[0] : "U"}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-400">
+                                {user.username || user.email}
+                              </span>
+                              <span className="text-[9px] text-slate-600 uppercase tracking-tighter">
+                                Offline
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-slate-400">
-                              {user.username}
-                            </span>
-                            <span className="text-[9px] text-slate-600 uppercase tracking-tighter">
-                              Offline
-                            </span>
-                          </div>
-                        </div>
-                        <div className="w-2 h-2 rounded-full bg-slate-700" />
-                      </DropdownMenuItem>
-                    ))
+                          <div className="w-2 h-2 rounded-full bg-slate-700" />
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
+                        All members are online
+                      </div>
+                    )
                   ) : (
                     <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
-                      All members are online
+                      No members synced in database
                     </div>
                   )}
                 </DropdownMenuContent>
