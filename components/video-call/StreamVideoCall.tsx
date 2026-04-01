@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Call,
   CallingState,
   DeviceSettings,
   PaginatedGridLayout,
-  ParticipantView,
   SpeakerLayout,
   StreamCall,
   useCallStateHooks,
@@ -232,7 +231,7 @@ const ControlBar = ({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Join my DrawMatrix meeting!\nID: ${roomName}\nLink: https://drawmatrixreference.vercel.app/video-call`)}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(`Join my DrawMatrix meeting!\nID: ${roomName}\nLink: ${typeof window !== 'undefined' ? window.location.origin : ''}/video-call`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] text-xs font-bold transition-all border border-[#25D366]/20"
@@ -240,7 +239,7 @@ const ControlBar = ({
                   WhatsApp
                 </a>
                 <a
-                  href={`mailto:?subject=DrawMatrix Meeting Invitation&body=${encodeURIComponent(`Join my architectural meeting on DrawMatrix!\n\nMeeting ID: ${roomName}\n\nJoin here: https://drawmatrixreference.vercel.app/video-call`)}`}
+                  href={`mailto:?subject=DrawMatrix Meeting Invitation&body=${encodeURIComponent(`Join my architectural meeting on DrawMatrix!\n\nMeeting ID: ${roomName}\n\nJoin here: ${typeof window !== 'undefined' ? window.location.origin : ''}/video-call`)}`}
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-bold transition-all border border-cyan-500/20"
                 >
                   Email
@@ -252,7 +251,7 @@ const ControlBar = ({
                     navigator.share({
                       title: 'DrawMatrix Meeting',
                       text: `Join my meeting! ID: ${roomName}`,
-                      url: 'https://drawmatrixreference.vercel.app/video-call'
+                      url: `${window.location.origin}/video-call`
                     });
                   } else {
                     copyId();
@@ -532,13 +531,39 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
 
   useEffect(() => {
     if (!client) return;
+
+    // Deep Core Fix: Ensure client state is actually initialized 
+    // before attempting to create/access a call.
+    if (!client.state) {
+      console.warn("[Stream] Client state not yet available");
+      return;
+    }
+
     const callId = roomName.replace(/[^a-zA-Z0-9_-]/g, "-");
-    const c = client.call("default", callId);
-    c.getOrCreate()
-      .then(() => setCall(c))
-      .catch((err) => setError(err?.message ?? "Could not connect to meeting"));
+    let c: Call;
+
+    try {
+      c = client.call("default", callId);
+      
+      // Disable automatic device detection and ring behavior during setup
+      // to prevent crashes on devices without media permissions
+      c.getOrCreate({
+        ring: false,
+      })
+        .then(() => setCall(c))
+        .catch((err) => {
+          console.error("[Stream] Setup error:", err);
+          setError(err?.message ?? "Could not connect to meeting");
+        });
+    } catch (err) {
+      console.error("[Stream] Fatal call initialization error:", err);
+      setError("Failed to initialize video engine");
+    }
+
     return () => {
-      c.leave().catch(() => {});
+      if (c) {
+        c.leave().catch(() => {});
+      }
     };
   }, [client, roomName]);
 
@@ -556,21 +581,9 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
         : "";
     localStorage.setItem("drawmatrix_display_name", name);
 
-    try {
-      // Reconnect with the real display name so all participants see it correctly
-      await client.disconnectUser();
-      await client.connectUser({ id: userId, name }, async () => {
-        const res = await fetch("/api/stream/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        });
-        const { token } = await res.json();
-        return token as string;
-      });
-    } catch (err) {
-      console.warn("[Stream] Reconnect skipped:", err);
-    }
+    // Name management is already handled during the initial client creation in StreamClientProvider.
+    // If the user name has changed, we use it for the local display only during this call session.
+    localStorage.setItem("drawmatrix_display_name", name);
 
     try {
       await call.join();

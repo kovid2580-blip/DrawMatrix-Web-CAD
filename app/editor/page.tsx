@@ -12,6 +12,7 @@ import { AIPromptPanel } from "@/components/editor/ai-prompt-panel";
 import { LayerManager } from "@/components/editor/layer-manager";
 import { useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
+import { socket } from "@/lib/socket";
 
 const ThreeLayer = dynamic(() => import("@/components/editor/three-layer"), {
   ssr: false,
@@ -34,6 +35,8 @@ export default function EditorPage() {
     setSelectedObjectId,
     undo,
     redo,
+    projectId,
+    deleteObject,
   } = useThreeStore();
   const { toggleOpen: toggleAI, setOpen: setAIOpen } = useAIStore();
 
@@ -62,6 +65,15 @@ export default function EditorPage() {
           toggleAI();
         }
       }
+
+      // Delete Handling
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const selectedId = useThreeStore.getState().selectedObjectId;
+        if (selectedId && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) {
+          deleteObject(selectedId);
+          socket.emit("delete_object", { projectId, objectId: selectedId });
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -78,17 +90,8 @@ export default function EditorPage() {
       const newId = Math.random().toString(36).substring(2, 9);
       setProjectInfo(newId, name);
     } else if (pid) {
-      const projects = JSON.parse(localStorage.getItem("dm_projects") || "[]");
-      const project = projects.find((p: any) => p.id === pid);
-      if (project) {
-        setProjectInfo(project.id, project.name);
-        if (project.content) {
-          const data = JSON.parse(project.content);
-          if (data.objects) setObjects(data.objects);
-          if (data.layers) setLayers(data.layers);
-          if (data.activeLayerId) setActiveLayer(data.activeLayerId);
-        }
-      }
+      // Just set the ID, let the socket in ThreeLayer handle the loading from DB
+      setProjectInfo(pid, projectName || "Loading...");
     }
   }, [searchParams, setProjectInfo, setObjects, setLayers, setActiveLayer]);
 

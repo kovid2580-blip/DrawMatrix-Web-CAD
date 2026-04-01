@@ -57,14 +57,17 @@ import {
   Undo,
   UnfoldHorizontal,
   View,
+  Video,
   Waves,
   Zap,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 import { ThreeObject, ThreeObjectType, useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
 import { socket } from "@/lib/socket";
+import { useCall } from "@/providers/CallContext";
 
 const generateUUID = () =>
   Math.random().toString(36).substring(2, 15) +
@@ -141,7 +144,10 @@ const Ribbon = ({
     projectId,
     undo,
     redo,
+    presences,
   } = useThreeStore();
+  const { data: session } = useSession();
+  const { inCall, joinCall, leaveCall } = useCall();
   const { toggleOpen: toggleAI, isOpen: isAIOpen } = useAIStore();
 
   const [autoSaveInterval, setAutoSaveInterval] = useState<number | null>(null);
@@ -157,15 +163,40 @@ const Ribbon = ({
     return () => clearInterval(intervalId);
   }, [autoSaveInterval, projectId, projectName]);
 
-  const handleSave = () => {
-    if (!projectId) return;
+  const handleSave = async () => {
+    if (!projectId || !session?.user?.email) return;
 
     const snapshot = getSnapshot();
+    const projectData = {
+      projectId,
+      name: projectName || "Untitled Project",
+      ownerEmail: session.user.email,
+      objects: snapshot, // The store returns the objects array
+      layers: [], // Not yet implemented in store snapshot but model supports
+      config: {
+        unitSystem: "metric",
+        gridSpacing: 1
+      }
+    };
+
+    try {
+      const res = await fetch(`/api/projects/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectData)
+      });
+      if (res.ok) {
+        console.log("[Cloud] Project saved successfully to MongoDB");
+      }
+    } catch (err) {
+      console.error("[Cloud] Failed to save project:", err);
+    }
+
+    // Still update local storage for quick access while transitioning
     const projects = JSON.parse(localStorage.getItem("dm_projects") || "[]");
     const timestamp = new Date().toISOString();
-
     const projectIndex = projects.findIndex((p: any) => p.id === projectId);
-    const projectData = {
+    const localProjectData = {
       id: projectId,
       name: projectName,
       content: snapshot,
@@ -173,11 +204,10 @@ const Ribbon = ({
     };
 
     if (projectIndex > -1) {
-      projects[projectIndex] = projectData;
+      projects[projectIndex] = localProjectData;
     } else {
-      projects.push(projectData);
+      projects.push(localProjectData);
     }
-
     localStorage.setItem("dm_projects", JSON.stringify(projects));
   };
 
@@ -307,17 +337,22 @@ const Ribbon = ({
           </button>
         </div>
 
-        <button
-          onClick={toggleAI}
-          title="AI Drawing Assistant (Ctrl+/)"
-          className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all border shadow-lg ${
-            isAIOpen
-              ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-500/50 shadow-cyan-500/20"
-              : "text-cyan-300 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/20"
-          }`}
-        >
-          <Sparkles size={12} /> AI Assistant
-        </button>
+        {/* Participants Presence List */}
+        <div className="flex items-center -space-x-2 mr-4 group px-2 border-l border-white/10 ml-2">
+          {Object.values(presences).map((user: any) => (
+            <div
+              key={user.id}
+              title={user.name}
+              className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white bg-gray-800 transition-transform hover:scale-110 hover:z-10 cursor-help"
+              style={{ borderColor: user.color }}
+            >
+              {(user.name || "U").charAt(0).toUpperCase()}
+            </div>
+          ))}
+          {Object.keys(presences).length === 0 && (
+            <div className="text-[9px] text-gray-500 italic">No one else here</div>
+          )}
+        </div>
 
         <div className="flex items-center space-x-1 bg-black/30 p-0.5 rounded mr-2">
           <button
@@ -333,6 +368,18 @@ const Ribbon = ({
             3D
           </button>
         </div>
+
+        <button
+          onClick={toggleAI}
+          title="AI Drawing Assistant (Ctrl+/)"
+          className={`flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all border shadow-lg ${
+            isAIOpen
+              ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-500/50 shadow-cyan-500/20"
+              : "text-cyan-300 hover:text-white bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/20"
+          }`}
+        >
+          <Sparkles size={12} /> AI Assistant
+        </button>
       </div>
 
       <div className="flex-1 flex px-2 overflow-x-auto custom-scrollbar overflow-y-hidden">
@@ -598,6 +645,16 @@ const Ribbon = ({
             <RibbonGroup title="Settings">
               <div className="flex items-center space-x-1">
                 <ToolButton icon={<Settings size={18} />} label="Project" />
+                <ToolButton
+                  icon={<Video size={18} className={inCall ? "text-cyan-400" : ""} />}
+                  label={inCall ? "Leave Meet" : "Join Meet"}
+                  onClick={() => {
+                    if (inCall) leaveCall();
+                    else if (projectId) joinCall(projectId);
+                    else window.alert("Select a project first!");
+                  }}
+                  active={inCall}
+                />
               </div>
             </RibbonGroup>
           </>

@@ -16,14 +16,11 @@ import {
   X,
 } from "lucide-react";
 
-import { useAIStore } from "@/store/ai-store";
-import { useThreeStore } from "@/store/threeStore";
-import { interpretPrompt } from "@/lib/ai/prompt-interpreter";
-import { parseDesignIntent } from "@/lib/ai/design-intent-parser";
 import {
   generateFromExternalEngine,
   generateObjects,
 } from "@/lib/ai/cad-dispatcher";
+import { socket, USER_ID } from "@/lib/socket";
 import { detectLayoutType, generateLayout } from "@/lib/ai/layout-generator";
 import { validateAndCorrect } from "@/lib/ai/rule-engine";
 
@@ -59,7 +56,7 @@ export const AIPromptPanel = () => {
     setOpen,
   } = useAIStore();
 
-  const { addObject, activeLayerId, pushHistory } = useThreeStore();
+  const { addObject, activeLayerId, pushHistory, projectId } = useThreeStore();
 
   const [showHistory, setShowHistory] = useState(false);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -131,6 +128,15 @@ export const AIPromptPanel = () => {
           pushHistory();
           for (const obj of objects) {
             addObject(obj);
+            // Sync to cloud
+            socket.emit("create_object", {
+               projectId,
+               type: "create_object",
+               objectId: obj.id,
+               userId: USER_ID,
+               timestamp: Date.now(),
+               payload: obj,
+            });
           }
           clearPreview();
           setPrompt("");
@@ -165,11 +171,20 @@ export const AIPromptPanel = () => {
     pushHistory();
     for (const obj of previewObjects) {
       addObject(obj);
+      // Sync to cloud
+      socket.emit("create_object", {
+         projectId,
+         type: "create_object",
+         objectId: obj.id,
+         userId: USER_ID,
+         timestamp: Date.now(),
+         payload: obj,
+      });
     }
     clearPreview();
     setPrompt("");
     setWarnings([]);
-  }, [previewObjects, addObject, pushHistory, clearPreview, setPrompt]);
+  }, [previewObjects, addObject, pushHistory, clearPreview, setPrompt, projectId]);
 
   const rejectPreview = useCallback(() => {
     clearPreview();

@@ -20,6 +20,33 @@ const nextConfig = {
 
   // Enable React strict mode for catching subtle runtime issues early
   reactStrictMode: true,
+  async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    console.log(`[Next.js Config] Backend URL for rewrites: ${backendUrl}`);
+
+    return [
+      {
+        source: '/api/schedules/:path*',
+        destination: `${backendUrl}/api/schedules/:path*`,
+      },
+      {
+        source: '/api/projects/:path*',
+        destination: `${backendUrl}/api/projects/:path*`,
+      },
+      {
+        source: '/api/messages/:path*',
+        destination: `${backendUrl}/api/messages/:path*`,
+      },
+      {
+        source: '/api/presence',
+        destination: `${backendUrl}/api/presence`,
+      },
+      {
+        source: '/get-users',
+        destination: `${backendUrl}/get-users`,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

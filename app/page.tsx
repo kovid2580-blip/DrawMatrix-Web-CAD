@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Cpu, Hexagon, Layers, Monitor, Zap } from "lucide-react";
+import { ArrowRight, Hexagon, Layers, Monitor, Zap } from "lucide-react";
 import { signIn, signOut, useSession } from "next-auth/react";
+import Image from "next/image";
 
 import ParticleBackground from "@/components/particle-background";
 
@@ -36,10 +37,12 @@ const LandingPage = () => {
             <>
               <div className="text-white/80 px-4 py-2 text-sm font-bold flex items-center gap-3">
                 {session.user?.image && (
-                  <img
+                  <Image
                     src={session.user.image}
                     alt="Profile"
-                    className="w-8 h-8 rounded-full border border-white/20"
+                    width={32}
+                    height={32}
+                    className="rounded-full border border-white/20"
                   />
                 )}
                 <span>{session.user?.name}</span>
@@ -137,19 +140,16 @@ const LandingPage = () => {
             icon={<Zap size={32} className="text-cyan-400" />}
             title="Real-Time Engine"
             desc="Shared state synchronized via low-latency binary protocols for instant feedback."
-            delay={0.2}
           />
           <FeatureCard
             icon={<Layers size={32} className="text-blue-400" />}
             title="Parametric Design"
             desc="Advanced architectural primitives with auto-cutting openings and smart alignment."
-            delay={0.4}
           />
           <FeatureCard
             icon={<Monitor size={32} className="text-purple-400" />}
             title="Multi-Engine View"
             desc="Switch seamlessly between 2D drafting and cinematic 3D modeling modes."
-            delay={0.6}
           />
         </div>
       </main>
@@ -161,12 +161,10 @@ const FeatureCard = ({
   icon,
   title,
   desc,
-  delay,
 }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
-  delay: number;
 }) => (
   <div className="glass-panel p-8 rounded-3xl text-left hover:-translate-y-2 transition-transform duration-300 bg-white/10 backdrop-blur-md border border-white/20">
     <div className="mb-6 p-4 bg-gray-50 rounded-2xl inline-block shadow-inner">

@@ -36,7 +36,14 @@ export default function VideoCallPage() {
       // Defensive internal check for common SDK issues
       if (!call) throw new Error("Failed to initialize call object locally.");
 
-      await call.getOrCreate();
+      // Disable camera/mic before getOrCreate to prevent device enumeration crash
+      await call.camera.disable();
+      await call.microphone.disable();
+
+      await call.getOrCreate({
+        ring: false,
+        data: { created_by_id: id },
+      });
       console.log("[Stream] Call created/retrieved successfully:", id);
 
       setNewMeetingId(id);
@@ -64,7 +71,15 @@ export default function VideoCallPage() {
     setCreateError(null);
     try {
       const call = client.call("default", trimmed);
-      await call.getOrCreate();
+      
+      // Fix: Disable camera/mic before getOrCreate to prevent device enumeration crash
+      await call.camera.disable();
+      await call.microphone.disable();
+
+      await call.getOrCreate({
+        ring: false,
+        data: { created_by_id: trimmed },
+      });
       joinCall(trimmed);
       router.push("/editor");
     } catch (err: any) {

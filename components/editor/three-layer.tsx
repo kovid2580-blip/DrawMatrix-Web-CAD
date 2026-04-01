@@ -18,18 +18,16 @@ import {
   OrbitControls,
   OrthographicCamera,
   PerspectiveCamera,
-  Text as Text3D,
   TransformControls,
 } from "@react-three/drei";
 import * as THREE from "three";
 
-import { Layer, ThreeObject, useThreeStore } from "@/store";
+import { ThreeObject, useThreeStore } from "@/store";
 import { socket } from "@/lib/socket";
 import { GeometryEngine } from "@/lib/geometryEngine";
 import { useAIStore } from "@/store/ai-store";
 
 import { RemoteCursors } from "./remote-cursors";
-import { CommentPin } from "./comment-pin";
 
 const USER_ID =
   typeof window !== "undefined"
@@ -121,65 +119,11 @@ const CADObject = ({
   setRef,
   activeTool,
 }: any) => {
-  const isLocked = !!obj.lockedBy && obj.lockedBy !== USER_ID;
   const layers = useThreeStore((s) => s.layers);
-  const layer = layers.find((l) => l.id === obj.layerId);
-
-  if (layer && !layer.visible) return null;
-
-  const handleClick = (e: any) => {
-    if (activeTool !== "select") return;
-    e.stopPropagation();
-    if (isLocked || (layer && layer.locked)) return;
-    onSelect(obj.id);
-  };
-
-  const position = new THREE.Vector3(...obj.transform.position);
-  const quaternion = new THREE.Quaternion(...obj.transform.rotation);
-  const scale = new THREE.Vector3(...obj.transform.scale);
-
-  const material = (
-    <meshStandardMaterial
-      color={
-        isSelected ? "#ffcc00" : isLocked ? "#444" : layer?.color || obj.color
-      }
-      opacity={isLocked ? 0.5 : 1}
-      transparent={isLocked}
-      wireframe={isLocked && !isSelected}
-      clippingPlanes={
-        obj.properties.clippingEnabled
-          ? [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0.5)]
-          : []
-      }
-      clipShadows={true}
-    />
-  );
-
+  const presences = useThreeStore((s) => s.presences);
   const isDragging = useThreeStore((s) => s.isDragging);
-
-  const commonProps = {
-    position: !isSelected || !isDragging ? position : undefined,
-    quaternion: !isSelected || !isDragging ? quaternion : undefined,
-    scale: !isSelected || !isDragging ? scale : undefined,
-    onClick: handleClick,
-    ref: (ref: any) => isSelected && setRef(ref),
-    castShadow: true,
-    receiveShadow: true,
-  };
-
-  // Check if it's a 2D Drafting object
-  if (["line", "circle", "arc", "rect", "ellipse"].includes(obj.type)) {
-    return (
-      <DraftingObject
-        obj={obj}
-        layer={layer}
-        isSelected={isSelected}
-        onClick={handleClick}
-      />
-    );
-  }
-
-  // Architectural Special Handling (Parametric)
+  
+  // Architectural Special Handling (Parametric) - Moved to top level
   const geometry = useMemo(() => {
     switch (obj.type) {
       case "wall":
@@ -220,6 +164,64 @@ const CADObject = ({
     }
   }, [obj.type, obj.properties]);
 
+  const layer = layers.find((l) => l.id === obj.layerId);
+  if (layer && !layer.visible) return null;
+
+  const isLocked = !!obj.lockedBy && obj.lockedBy !== USER_ID;
+
+  const handleClick = (e: any) => {
+    if (activeTool !== "select") return;
+    e.stopPropagation();
+    if (isLocked || (layer && layer.locked)) return;
+    onSelect(obj.id);
+  };
+
+  const position = new THREE.Vector3(...obj.transform.position);
+  const quaternion = new THREE.Quaternion(...obj.transform.rotation);
+  const scale = new THREE.Vector3(...obj.transform.scale);
+
+  const lockingUser = obj.lockedBy ? Object.values(presences).find(p => p.id === obj.lockedBy) : null;
+  const lockColor = lockingUser?.color || "#444";
+
+  const material = (
+    <meshStandardMaterial
+      color={
+        isSelected ? "#ffcc00" : isLocked ? lockColor : layer?.color || obj.color
+      }
+      opacity={isLocked ? 0.6 : 1}
+      transparent={isLocked}
+      wireframe={isLocked && !isSelected}
+      clippingPlanes={
+        obj.properties.clippingEnabled
+          ? [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0.5)]
+          : []
+      }
+      clipShadows={true}
+    />
+  );
+
+  const commonProps = {
+    position: !isSelected || !isDragging ? position : undefined,
+    quaternion: !isSelected || !isDragging ? quaternion : undefined,
+    scale: !isSelected || !isDragging ? scale : undefined,
+    onClick: handleClick,
+    ref: (ref: any) => isSelected && setRef(ref),
+    castShadow: true,
+    receiveShadow: true,
+  };
+
+  // Check if it's a 2D Drafting object
+  if (["line", "circle", "arc", "rect", "ellipse"].includes(obj.type)) {
+    return (
+      <DraftingObject
+        obj={obj}
+        layer={layer}
+        isSelected={isSelected}
+        onClick={handleClick}
+      />
+    );
+  }
+
   if (obj.type === "text" || obj.type === "mtext") {
     return (
       <Html position={obj.transform.position} center>
@@ -245,6 +247,17 @@ const CADObject = ({
             {dist}m
           </div>
         </Html>
+        {isLocked && lockingUser && (
+          <Html position={[0, (obj.properties.height || 1) + 0.5, 0]} center>
+            <div 
+              className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
+              style={{ backgroundColor: lockColor }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              Editing: {lockingUser.name}
+            </div>
+          </Html>
+        )}
       </group>
     );
   }
@@ -261,6 +274,17 @@ const CADObject = ({
           attach="geometry"
         />
         {material}
+        {isLocked && lockingUser && (
+          <Html position={[0, (obj.properties.height || 1) + 0.5, 0]} center>
+            <div 
+              className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
+              style={{ backgroundColor: lockColor }}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              Editing: {lockingUser.name}
+            </div>
+          </Html>
+        )}
       </mesh>
     );
   }
@@ -276,6 +300,17 @@ const CADObject = ({
       {obj.type === "door" && <boxGeometry args={[0.9, 2.1, 0.1]} />}
       {obj.type === "window" && <boxGeometry args={[1.2, 1.2, 0.1]} />}
       {material}
+      {isLocked && lockingUser && (
+        <Html position={[0, 1.5, 0]} center>
+          <div 
+            className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
+            style={{ backgroundColor: lockColor }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Editing: {lockingUser.name}
+          </div>
+        </Html>
+      )}
     </mesh>
   );
 };
@@ -308,11 +343,12 @@ const ThreeScene = ({
   const [isDragging, setIsDragging] = useState(false);
   const [drawingStart, setDrawingStart] = useState<THREE.Vector3 | null>(null);
   const [currentPoint, setCurrentPoint] = useState<THREE.Vector3 | null>(null);
-  const { camera, gl, scene } = useThree();
+  const { camera } = useThree();
   const surfaceRef = useRef<THREE.Mesh>(null);
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const controlsRef = useRef<any>(null);
   const lastEmitRef = useRef(0);
+  const lastPresenceEmitRef = useRef(0);
 
   // Update global isDragging state for components to see
   useEffect(() => {
@@ -362,31 +398,71 @@ const ThreeScene = ({
     [gridSpacing]
   );
 
-  // STABILITY RULE: Operational WebSocket Listeners
-  useEffect(() => {
-    socket.connect();
+    const { projectId, setObjects, setLayers } = useThreeStore();
 
-    socket.on("create_object", ({ payload }) => addObject(payload));
-    socket.on("delete_object", ({ objectId }) => deleteObject(objectId));
-    socket.on("transform_object", ({ objectId, payload }) =>
-      updateObject(objectId, { transform: payload.transform })
-    );
-    socket.on("update_property", ({ objectId, payload }) =>
-      updateObject(objectId, { properties: payload.properties })
-    );
+    // STABILITY RULE: Operational WebSocket Listeners
+    useEffect(() => {
+        socket.connect();
 
-    socket.on("presence-update", (data) =>
-      updatePresence(data.userId, data.presence)
-    );
-    socket.on("presence-disconnect", (userId) => removePresence(userId));
-    socket.on("replace_geometry", ({ objectId, geometryData }) =>
-      updateObject(objectId, { geometryData })
-    );
+        if (projectId) {
+            socket.emit("join_project", { 
+                projectId, 
+                userId: USER_ID, 
+                username: USER_NAME 
+            });
+        }
 
-    return () => {
-      socket.disconnect();
-    };
-  }, [addObject, deleteObject, updateObject, updatePresence, removePresence]);
+        socket.on("load_project", (data) => {
+            if (data.objects) setObjects(data.objects);
+            if (data.layers) setLayers(data.layers);
+            if (data.projectName) useThreeStore.setState({ projectName: data.projectName });
+        });
+
+        socket.on("create_object", ({ payload }) => {
+            addObject(payload);
+        });
+        socket.on("delete_object", ({ objectId }) => {
+            deleteObject(objectId);
+        });
+        socket.on("transform_object", ({ objectId, payload }) => {
+            // Throttled logging to avoid console lag
+            // console.log(`[Socket] Remote Transform: ${objectId}`);
+            updateObject(objectId, { transform: payload.transform });
+        });
+        socket.on("update_property", ({ objectId, payload }) =>
+            updateObject(objectId, { properties: payload.properties })
+        );
+
+        socket.on("presence-update", (data) =>
+            updatePresence(data.userId, data.presence)
+        );
+        socket.on("room_presence_list", (list) => {
+            Object.entries(list).forEach(([sid, presence]: [string, any]) => {
+                updatePresence(presence.userId, presence);
+            });
+        });
+        socket.on("presence-disconnect", (userId) => removePresence(userId));
+        socket.on("replace_geometry", ({ objectId, geometryData }) =>
+            updateObject(objectId, { geometryData })
+        );
+        socket.on("lock_object", ({ objectId, userId }) =>
+            updateObject(objectId, { lockedBy: userId })
+        );
+        socket.on("unlock_object", ({ objectId }) =>
+            updateObject(objectId, { lockedBy: null })
+        );
+        socket.on("unlock_all_by_user", ({ userId }) => {
+            useThreeStore.getState().objects.forEach(obj => {
+                if (obj.lockedBy === userId) {
+                    updateObject(obj.id, { lockedBy: null });
+                }
+            });
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [projectId, addObject, deleteObject, updateObject, updatePresence, removePresence, setObjects, setLayers]);
 
   // Cursor tracking
   const handleTransformChange = useCallback(
@@ -444,6 +520,7 @@ const ThreeScene = ({
               const geometryData = JSON.stringify(resultGeom.toJSON());
               updateObject(nearestWall.id, { geometryData });
               socket.emit("replace_geometry", {
+                projectId,
                 objectId: nearestWall.id,
                 geometryData,
                 userId: USER_ID,
@@ -454,8 +531,9 @@ const ThreeScene = ({
 
         // Throttled Socket Update for smooth collaboration
         const now = Date.now();
-        if (isFinal || now - lastEmitRef.current > 50) {
+        if (isFinal || now - lastEmitRef.current > 30) {
           socket.emit("transform_object", {
+            projectId,
             type: "transform_object",
             objectId: selectedObjectId,
             userId: USER_ID,
@@ -466,7 +544,7 @@ const ThreeScene = ({
         }
       }
     },
-    [selectedMesh, selectedObjectId, updateObject, objects]
+    [selectedMesh, selectedObjectId, updateObject, objects, projectId]
   );
 
   const handlePointerDown = useCallback(
@@ -491,23 +569,28 @@ const ThreeScene = ({
       setCurrentPoint(pt);
       useThreeStore.getState().setLocalCursor([pt.x, pt.y, pt.z]);
 
-      // Presence Update
-      socket.emit("presence-update", {
-        userId: USER_ID,
-        presence: {
-          id: USER_ID,
-          name: USER_NAME,
-          color: USER_COLOR,
-          cursor: [pt.x, pt.y, pt.z],
-          cameraPosition: [
-            camera.position.x,
-            camera.position.y,
-            camera.position.z,
-          ],
-        },
-      });
+      // Presence Update - Throttled to 100ms
+      const now = Date.now();
+      if (now - lastPresenceEmitRef.current > 100) {
+        socket.emit("presence-update", {
+          projectId,
+          userId: USER_ID,
+          presence: {
+            id: USER_ID,
+            name: USER_NAME,
+            color: USER_COLOR,
+            cursor: [pt.x, pt.y, pt.z],
+            cameraPosition: [
+              camera.position.x,
+              camera.position.y,
+              camera.position.z,
+            ],
+          },
+        });
+        lastPresenceEmitRef.current = now;
+      }
     },
-    [camera, snap, cinematicMode]
+    [camera, snap, cinematicMode, projectId]
   );
 
   const handlePointerUp = useCallback(
@@ -567,6 +650,7 @@ const ThreeScene = ({
 
       addObject(newObj);
       socket.emit("create_object", {
+        projectId,
         type: "create_object",
         objectId: newObj.id,
         userId,
@@ -605,6 +689,7 @@ const ThreeScene = ({
           const geometryData = JSON.stringify(resultGeom.toJSON());
           updateObject(nearestWall.id, { geometryData });
           socket.emit("replace_geometry", {
+            projectId,
             objectId: nearestWall.id,
             geometryData,
             userId,
@@ -726,9 +811,13 @@ const ThreeScene = ({
           <TransformControls
             object={selectedMesh}
             mode={transformMode}
-            onMouseDown={() => setIsDragging(true)}
+            onMouseDown={() => {
+              setIsDragging(true);
+              socket.emit("lock_object", { projectId, objectId: selectedObjectId, userId: USER_ID });
+            }}
             onMouseUp={() => {
               setIsDragging(false);
+              socket.emit("unlock_object", { projectId, objectId: selectedObjectId });
               handleTransformChange(true);
             }}
             onChange={() => {

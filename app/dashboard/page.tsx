@@ -1,12 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
   Calendar,
+  Clock,
+  FileText,
   FolderKanban,
+  Loader2,
   LogOut,
   Save,
   Video,
@@ -15,6 +19,50 @@ import { signOut } from "next-auth/react";
 
 export default function Dashboard() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [recentProjects, setRecentProjects] = useState<any[]>([]);
+  const [presenceData, setPresenceData] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      if (session) setLoading(false);
+      return;
+    }
+
+    const fetchRecent = async () => {
+      try {
+        const res = await fetch(`/api/projects?ownerEmail=${session?.user?.email}`);
+        if (res.ok) {
+          const cloudProjects = await res.json();
+          // Take top 3
+          setRecentProjects(cloudProjects.slice(0, 3));
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent projects:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchPresence = async () => {
+      try {
+        const res = await fetch(`/api/presence`);
+        if (res.ok) {
+          setPresenceData(await res.json());
+        }
+      } catch (err) {
+        console.error("Failed to fetch presence:", err);
+      }
+    };
+
+    fetchRecent();
+    fetchPresence();
+    
+    // Poll presence every 10s
+    const pInterval = setInterval(fetchPresence, 10000);
+    return () => clearInterval(pInterval);
+  }, [session]);
 
   const cards = [
     {
@@ -81,6 +129,81 @@ export default function Dashboard() {
           Your centralized workspace for architectural design and collaboration.
         </p>
       </motion.div>
+
+      {/* Recent Work Section */}
+      {!loading && recentProjects.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="w-full max-w-4xl mb-12"
+        >
+          <div className="flex items-center justify-between mb-6 px-2">
+            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Recent Work
+            </h2>
+            <button 
+              onClick={() => router.push('/dashboard/projects')}
+              className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              View All
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {recentProjects.map((p, idx) => {
+              const projectPresence = presenceData[p.projectId] || {};
+              const members = Object.values(projectPresence);
+
+              return (
+                <div
+                  key={p.projectId}
+                  onClick={() => router.push(`/editor?projectId=${p.projectId}`)}
+                  className="group relative p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 hover:bg-white/[0.05] transition-all cursor-pointer overflow-hidden shadow-2xl"
+                >
+                  <div className="relative z-10 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                        <FileText size={16} />
+                      </div>
+                      
+                      {/* Active Members Avatars */}
+                      <div className="flex -space-x-1.5 overflow-hidden">
+                        {members.map((m: any, i) => (
+                          <div
+                            key={i}
+                            title={m.name}
+                            className="w-5 h-5 rounded-full border border-slate-900 flex items-center justify-center text-[8px] font-bold text-white uppercase"
+                            style={{ backgroundColor: m.color }}
+                          >
+                            {m.name.charAt(0)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors truncate">
+                        {p.name}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                        Edited {new Date(p.updatedAt).toLocaleDateString()}
+                        {members.length > 0 && (
+                          <span className="text-cyan-500 ml-auto flex items-center gap-0.5 font-bold">
+                            <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />
+                            {members.length} Active
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Subtle Hover Glow */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">

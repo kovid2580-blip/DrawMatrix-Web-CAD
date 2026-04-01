@@ -27,49 +27,67 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        const userId = getAnonymousUserId();
-        const savedName = localStorage.getItem("drawmatrix_display_name");
-        const displayName = savedName || `User-${userId.slice(-4)}`;
+        let isMounted = true;
+        let client: StreamVideoClient | null = null;
 
-        console.log("[Stream] Initializing client for user:", userId, "as", displayName);
-
-        const tokenProvider = async () => {
+        const initClient = async () => {
             try {
-                console.log("[Stream] Fetching token for user:", userId);
-                const res = await fetch("/api/stream/token", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId }),
+                const userId = getAnonymousUserId();
+                const savedName = localStorage.getItem("drawmatrix_display_name");
+                const displayName = savedName || `User-${userId.slice(-4)}`;
+
+                console.log("[Stream] Initializing client for user:", userId);
+
+                const tokenProvider = async () => {
+                    try {
+                        const domain = typeof window !== "undefined" ? window.location.origin : "";
+                        const url = `${domain}/api/stream/token`;
+                        
+                        const res = await fetch(url, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId }),
+                        });
+
+                        if (!res.ok) throw new Error(`Token API failed: ${res.status}`);
+                        const data = await res.json();
+                        return data.token as string;
+                    } catch (err) {
+                        console.error("[Stream] Token error:", err);
+                        throw err;
+                    }
+                };
+
+                const newClient = new StreamVideoClient({
+                    apiKey: API_KEY,
+                    user: { id: userId, name: displayName },
+                    tokenProvider,
                 });
-                if (!res.ok) {
-                    const errorText = await res.text();
-                    console.error("[Stream] Token API failed. Status:", res.status, "Body:", errorText);
-                    throw new Error(`Token API failed with status ${res.status}`);
+
+                // Deep Core Fix: Wait for the client to stabilize its internal state
+                // This prevents the "Cannot read properties of undefined (reading 'find')" error
+                // which occurs when accessing client.state before its collections are initialized.
+                await new Promise((resolve) => setTimeout(resolve, 100));
+
+                if (isMounted) {
+                    client = newClient;
+                    setVideoClient(newClient);
+                    console.log("[Stream] Client ready and set to state");
                 }
-                const { token } = await res.json();
-                console.log("[Stream] Token received successfully");
-                return token as string;
             } catch (err) {
-                console.error("[Stream] Token provider error:", err);
-                throw err;
+                console.error("[Stream] Client initialization failed:", err);
             }
         };
 
-        const client = new StreamVideoClient({
-            apiKey: API_KEY,
-            user: { id: userId, name: displayName },
-            tokenProvider,
-        });
-
-        client.on("connection.state_changed", (event) => {
-            console.log("[Stream] Connection state changed:", event.body.state);
-        });
-
-        setVideoClient(client);
+        initClient();
 
         return () => {
-            console.log("[Stream] Cleaning up client");
-            client.disconnectUser();
+            isMounted = false;
+            if (client) {
+                // Ensure client is disconnected gracefully on unmount if needed
+                // But for development, keeping it alive often avoids refresh race conditions
+                console.log("[Stream] Cleanup: Component unmounting");
+            }
         };
     }, []);
 

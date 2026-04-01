@@ -16,13 +16,30 @@ export async function POST(req: Request) {
   }
 
   const { userId } = await req.json();
-  if (!userId)
+  if (!userId) {
+    console.error("[Stream API] Missing userId in request");
     return NextResponse.json({ error: "userId required" }, { status: 400 });
+  }
+
+  console.log(`[Stream API] Generating token for user: ${userId}`);
 
   const client = new StreamClient(API_KEY, API_SECRET);
-  const exp = Math.round(Date.now() / 1000) + 3600; // 1 hour
-  const issued = Math.floor(Date.now() / 1000) - 60;
-  const token = client.createToken(userId, exp, issued);
+
+  // Ensure user exists on Stream's servers before generating token
+  try {
+    await client.upsertUsers([{
+      id: userId,
+      name: userId,
+      role: "user",
+    }]);
+    console.log(`[Stream API] User upserted/verified: ${userId}`);
+  } catch (upsertErr) {
+    console.error("[Stream API] User upsert error (non-fatal):", upsertErr);
+    // Continue anyway — token generation may still work
+  }
+
+  const token = client.generateUserToken({ user_id: userId });
+  console.log(`[Stream API] Token generated successfully for: ${userId}`);
 
   return NextResponse.json({ token });
 }

@@ -36,9 +36,8 @@ export default function SchedulesPage() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
   
   const [schedules, setSchedules] = useState<
-    { id: string; title: string; date: string; time: string; type: string }[]
+    { _id: string; title: string; date: string; time: string; type: string }[]
   >([]);
-  const [allUsers, setAllUsers] = useState<{ _id: string; username: string; email: string }[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "error">("connecting");
   
   const [messages, setMessages] = useState<
@@ -121,44 +120,41 @@ export default function SchedulesPage() {
     };
   }, [session, updatePresence, removePresence]);
 
-  // Load from localStorage
+  // Load messages and schedules from backend
   useEffect(() => {
-    const savedSchedules = localStorage.getItem("drawmatrix_schedules");
-    if (savedSchedules) {
-      try {
-        const parsed = JSON.parse(savedSchedules);
-        if (Array.isArray(parsed)) setSchedules(parsed);
-      } catch (e) { console.error(e); }
-    }
+    // Fetch messages from backend
+    fetch(`${API_BASE_URL}/api/messages?projectId=${ROOM_ID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+            setMessages(data);
+        } else {
+            setMessages([{ id: "1", user: "System", text: "Welcome to the project feed!", time: "09:00 AM" }]);
+        }
+      })
+      .catch(err => console.error("Failed to fetch messages:", err));
 
-    const savedMessages = localStorage.getItem(`drawmatrix_messages_${ROOM_ID}`);
-    if (savedMessages) {
-        try {
-            const parsed = JSON.parse(savedMessages);
-            if (Array.isArray(parsed)) setMessages(parsed);
-        } catch (e) { console.error(e); }
-    } else {
-        setMessages([
-            { id: "1", user: "System", text: "Welcome to the project feed!", time: "09:00 AM" }
-        ]);
-    }
+    // Fetch schedules from backend
+    fetch(`${API_BASE_URL}/api/schedules?projectId=${ROOM_ID}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setSchedules(data);
+      })
+      .catch(err => console.error("Failed to fetch schedules:", err));
     
     isInitialLoad.current = false;
-  }, []);
 
-  // Save schedules to localStorage
-  useEffect(() => {
-    if (!isInitialLoad.current) {
-      localStorage.setItem("drawmatrix_schedules", JSON.stringify(schedules));
-    }
-  }, [schedules]);
+    // Listen for new messages from others
+    socket.on('receive_message', (msg: any) => {
+        setMessages(prev => [...prev, msg]);
+    });
 
-  // Save messages to localStorage
-  useEffect(() => {
-    if (!isInitialLoad.current) {
-      localStorage.setItem(`drawmatrix_messages_${ROOM_ID}`, JSON.stringify(messages));
-    }
-  }, [messages]);
+    return () => {
+        socket.off('receive_message');
+    };
+  }, [API_BASE_URL]);
+
+  // Remove the old localStorage auto-save as we now use the DB
 
   const cleanupSchedules = useCallback(() => {
     const now = new Date();
@@ -183,7 +179,7 @@ export default function SchedulesPage() {
   const handleSendMessage = () => {
     if (!newMessage.trim() || !session?.user) return;
     const msg = {
-      id: Date.now().toString(),
+      projectId: ROOM_ID,
       user: session.user.name || "Anonymous",
       text: newMessage,
       time: new Date().toLocaleTimeString([], {
@@ -191,29 +187,49 @@ export default function SchedulesPage() {
         minute: "2-digit",
       }),
     };
-    setMessages([...messages, msg]);
+    
+    // Send to server via socket (server will save to DB and broadcast)
+    socket.emit('send_message', msg);
+    
+    // Update local state immediately for the sender
+    setMessages([...messages, { ...msg, id: Date.now().toString() }]);
     setNewMessage("");
   };
 
   const handleAddSchedule = () => {
     if (!newTitle || !newDate || !newTime) return;
-    const newSchedule = {
-      id: Date.now().toString(),
+    const scheduleData = {
       title: newTitle,
       date: newDate,
       time: newTime,
       type: newType,
+      projectId: ROOM_ID,
+      createdBy: session?.user?.email
     };
-    setSchedules([...schedules, newSchedule]);
-    setNewTitle("");
-    setNewDate("");
-    setNewTime("");
-    setNewType("Meeting");
-    setShowForm(false);
+
+    fetch(`${API_BASE_URL}/api/schedules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scheduleData)
+    })
+      .then(res => res.json())
+      .then(newSchedule => {
+        setSchedules([...schedules, newSchedule]);
+        setNewTitle("");
+        setNewDate("");
+        setNewTime("");
+        setNewType("Meeting");
+        setShowForm(false);
+      })
+      .catch(err => console.error("Failed to add schedule:", err));
   };
 
   const handleDeleteSchedule = (id: string) => {
-    setSchedules(schedules.filter((s) => s.id !== id));
+    fetch(`${API_BASE_URL}/api/schedules/${id}`, { method: 'DELETE' })
+      .then(() => {
+        setSchedules(schedules.filter((s) => s._id !== id));
+      })
+      .catch(err => console.error("Failed to delete schedule:", err));
   };
 
   // Filter offline users (all users minus those currently in presences)
@@ -252,7 +268,7 @@ export default function SchedulesPage() {
             ) : (
               schedules.map((s) => (
                 <div
-                  key={s.id}
+                  key={s._id}
                   className="p-6 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-blue-500/50 transition-colors"
                 >
                   <div>
@@ -267,7 +283,7 @@ export default function SchedulesPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteSchedule(s.id)}
+                    onClick={() => handleDeleteSchedule(s._id)}
                     className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/10 rounded-lg text-red-400 transition-all"
                   >
                     Delete
