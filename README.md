@@ -29,15 +29,7 @@ To use the tool with others, you must deploy it online:
 - Copy all environment variables from `.env.local` to Vercel's Dashboard.
 
 ### 2. Signaling Server (Socket.io)
-- **Host**: [Railway](https://railway.app/) or [Render](https://render.com/).
+- **Host**: [Render](https://render.com/).
 - Deploy the `/server` folder.
 - Update the client’s `SOCKET_URL` to point to your public server.
 
-## Google Colab Integration
-
-If you are using a separate **CAD Engine** on Google Colab:
-1. Run your Colab notebook and expose the Flask/FastAPI server via `ngrok`.
-2. Copy the ngrok URL.
-3. Add it to `.env.local` (or Vercel environmental variables):
-   `NEXT_PUBLIC_CAD_ENGINE_URL=https://your-ngrok-id.ngrok-free.app`
-4. The system will now have the hooks to call your external AI/CAD engine.
