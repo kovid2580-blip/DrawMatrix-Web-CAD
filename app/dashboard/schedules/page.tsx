@@ -265,14 +265,34 @@ const SchedulesPage = () => {
       isInitialLoad.current = false;
     };
 
+    const handleMessageHistory = (history: FeedMessage[]) => {
+      if (Array.isArray(history) && history.length > 0) {
+        setMessages(history);
+        return;
+      }
+
+      setMessages([FALLBACK_MESSAGE]);
+    };
+
     const handleReceiveMessage = (message: FeedMessage) => {
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => {
+        if (prev.some((existing) => existing.id === message.id)) {
+          return prev;
+        }
+
+        const nextMessages =
+          prev.length === 1 && prev[0]?.id === FALLBACK_MESSAGE.id ? [] : prev;
+
+        return [...nextMessages, message];
+      });
     };
 
     void loadMessagesAndSchedules();
+    socket.on("message_history", handleMessageHistory);
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
+      socket.off("message_history", handleMessageHistory);
       socket.off("receive_message", handleReceiveMessage);
     };
   }, []);
@@ -314,7 +334,6 @@ const SchedulesPage = () => {
     };
 
     socket.emit("send_message", message);
-    setMessages((prev) => [...prev, { ...message, id: Date.now().toString() }]);
     setNewMessage("");
   };
 
