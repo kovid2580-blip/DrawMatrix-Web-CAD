@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { buildBackendUrl } from "@/lib/api-base";
+
 export const AUTH_STORAGE_KEYS = [
   "dm_auth_mock",
   "drawmatrix_display_name",
@@ -9,6 +11,7 @@ export const AUTH_STORAGE_KEYS = [
   "drawmatrix_user_color",
   "drawmatrix_meeting_name",
   "drawmatrix_presence_key",
+  "drawmatrix_profile_sync_key",
 ] as const;
 
 export const isAuthenticated = () => {
@@ -47,6 +50,23 @@ export const getCurrentUserProfile = () => {
   return { displayName, email, userId };
 };
 
+const persistUserProfile = ({
+  displayName,
+  email,
+  userId,
+}: {
+  displayName: string;
+  email: string;
+  userId: string;
+}) => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem("drawmatrix_display_name", displayName);
+  window.localStorage.setItem("drawmatrix_user_email", email);
+  window.localStorage.setItem("drawmatrix_user_id", userId);
+  window.localStorage.setItem("cad_user_id", userId);
+};
+
 export const ensureLocalAccessProfile = () => {
   if (typeof window === "undefined") {
     return {
@@ -73,10 +93,7 @@ export const ensureLocalAccessProfile = () => {
     userId: guestId,
   };
 
-  window.localStorage.setItem("drawmatrix_display_name", profile.displayName);
-  window.localStorage.setItem("drawmatrix_user_email", profile.email);
-  window.localStorage.setItem("drawmatrix_user_id", profile.userId);
-  window.localStorage.setItem("cad_user_id", profile.userId);
+  persistUserProfile(profile);
 
   return profile;
 };
@@ -90,6 +107,85 @@ export const getOrCreatePresenceKey = () => {
   const generated = `presence-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
   window.localStorage.setItem("drawmatrix_presence_key", generated);
   return generated;
+};
+
+export const syncAssignedIdentity = async () => {
+  if (typeof window === "undefined") {
+    return {
+      changed: false,
+      profile: {
+        displayName: "Guest",
+        email: "",
+        userId: "guest",
+      },
+    };
+  }
+
+  const localProfile = ensureLocalAccessProfile();
+  const presenceKey = getOrCreatePresenceKey();
+  const lastSyncedPresenceKey =
+    window.localStorage.getItem("drawmatrix_profile_sync_key") || "";
+
+  if (
+    lastSyncedPresenceKey === presenceKey &&
+    localProfile.displayName !== "Guest" &&
+    localProfile.displayName !== "Guest User"
+  ) {
+    return { changed: false, profile: localProfile };
+  }
+
+  try {
+    const response = await fetch(buildBackendUrl("/upsert-user"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        presenceKey,
+        email: localProfile.email || "",
+        username: localProfile.displayName || "Guest",
+      }),
+    });
+
+    if (!response.ok) {
+      return { changed: false, profile: localProfile };
+    }
+
+    const data = (await response.json()) as {
+      user?: {
+        assignedName?: string;
+        username?: string;
+        email?: string;
+        userId?: string;
+        presenceKey?: string;
+      };
+    };
+    const assignedUser = data.user;
+    const nextProfile = {
+      displayName:
+        assignedUser?.assignedName ||
+        assignedUser?.username ||
+        localProfile.displayName ||
+        "Guest",
+      email: assignedUser?.email || localProfile.email || "",
+      userId:
+        assignedUser?.userId ||
+        assignedUser?.presenceKey ||
+        localProfile.userId ||
+        `guest-${presenceKey.slice(-6)}`,
+    };
+    const changed =
+      nextProfile.displayName !== localProfile.displayName ||
+      nextProfile.email !== localProfile.email ||
+      nextProfile.userId !== localProfile.userId;
+
+    persistUserProfile(nextProfile);
+    window.localStorage.setItem("drawmatrix_profile_sync_key", presenceKey);
+
+    return { changed, profile: nextProfile };
+  } catch {
+    return { changed: false, profile: localProfile };
+  }
 };
 
 export const useRequireAuth = () => {
