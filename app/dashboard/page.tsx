@@ -2,8 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -16,6 +14,7 @@ import {
   Video,
 } from "lucide-react";
 
+import { clearAuthStorage, getCurrentUserProfile } from "@/lib/auth";
 import {
   getLocalProjects,
   mergeProjectLists,
@@ -31,7 +30,7 @@ type RecentProject = ProjectListItem & {
 
 const Dashboard = () => {
   const router = useRouter();
-  const { data: session } = useSession();
+  const profile = getCurrentUserProfile();
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [presenceData, setPresenceData] = useState<
     Record<string, Record<string, UserPresence>>
@@ -45,15 +44,13 @@ const Dashboard = () => {
         setLoading(false);
       };
 
-      if (!session?.user?.email) {
+      if (!profile.email) {
         loadLocalProjects();
         return;
       }
 
       try {
-        const res = await fetch(
-          `/api/projects?ownerEmail=${session.user.email}`
-        );
+        const res = await fetch(`/api/projects?ownerEmail=${profile.email}`);
         if (res.ok) {
           const payload = await res.json();
           const cloudProjects = normalizeProjectListPayload(payload);
@@ -87,7 +84,7 @@ const Dashboard = () => {
     // Poll presence every 10s
     const pInterval = setInterval(fetchPresence, 10000);
     return () => clearInterval(pInterval);
-  }, [session]);
+  }, [profile.email]);
 
   const cards = [
     {
@@ -130,7 +127,10 @@ const Dashboard = () => {
       {/* Top Right Logout */}
       <div className="absolute top-6 right-6 z-20">
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => {
+            clearAuthStorage();
+            router.push("/");
+          }}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium text-slate-300 hover:text-white"
         >
           <LogOut size={16} />

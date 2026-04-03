@@ -41,6 +41,40 @@ export const getCurrentUserProfile = () => {
   return { displayName, email, userId };
 };
 
+export const ensureLocalAccessProfile = () => {
+  if (typeof window === "undefined") {
+    return {
+      displayName: "Guest User",
+      email: "",
+      userId: "guest",
+    };
+  }
+
+  const existing = getCurrentUserProfile();
+  if (
+    existing.displayName !== "Guest User" ||
+    existing.email ||
+    existing.userId !== "guest"
+  ) {
+    return existing;
+  }
+
+  const presenceKey = getOrCreatePresenceKey();
+  const guestId = `guest-${presenceKey.slice(-6)}`;
+  const profile = {
+    displayName: "Guest User",
+    email: "",
+    userId: guestId,
+  };
+
+  window.localStorage.setItem("drawmatrix_display_name", profile.displayName);
+  window.localStorage.setItem("drawmatrix_user_email", profile.email);
+  window.localStorage.setItem("drawmatrix_user_id", profile.userId);
+  window.localStorage.setItem("cad_user_id", profile.userId);
+
+  return profile;
+};
+
 export const getOrCreatePresenceKey = () => {
   if (typeof window === "undefined") return "";
 

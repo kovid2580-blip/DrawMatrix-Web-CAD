@@ -3,14 +3,19 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Hexagon, Layers, Monitor, Zap } from "lucide-react";
-import { signIn, signOut, useSession } from "next-auth/react";
-import Image from "next/image";
 
 import ParticleBackground from "@/components/particle-background";
+import {
+  clearAuthStorage,
+  ensureLocalAccessProfile,
+  getCurrentUserProfile,
+} from "@/lib/auth";
 
 const LandingPage = () => {
   const router = useRouter();
-  const { data: session } = useSession();
+  const profile = getCurrentUserProfile();
+  const hasLocalUser =
+    profile.userId !== "guest" || profile.displayName !== "Guest User";
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col font-sans text-white selection:bg-cyan-500 selection:text-white bg-gradient-to-br from-blue-900 via-blue-600 to-cyan-400">
@@ -33,22 +38,19 @@ const LandingPage = () => {
         <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-blue-100 tracking-wide"></div>
 
         <div className="flex items-center space-x-4">
-          {session ? (
+          {hasLocalUser ? (
             <>
               <div className="text-white/80 px-4 py-2 text-sm font-bold flex items-center gap-3">
-                {session.user?.image && (
-                  <Image
-                    src={session.user.image}
-                    alt="Profile"
-                    width={32}
-                    height={32}
-                    className="rounded-full border border-white/20"
-                  />
-                )}
-                <span>{session.user?.name}</span>
+                <div className="w-8 h-8 rounded-full border border-white/20 bg-cyan-500/20 flex items-center justify-center text-xs font-black">
+                  {profile.displayName.charAt(0)}
+                </div>
+                <span>{profile.displayName}</span>
               </div>
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => {
+                  clearAuthStorage();
+                  router.push("/");
+                }}
                 className="bg-gray-900/50 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200 border border-white/10"
               >
                 Sign Out
@@ -57,16 +59,22 @@ const LandingPage = () => {
           ) : (
             <>
               <button
-                onClick={() => signIn("google")}
+                onClick={() => {
+                  ensureLocalAccessProfile();
+                  router.push("/project-access");
+                }}
                 className="text-white/80 hover:text-white px-4 py-2 text-sm font-bold transition-colors"
               >
-                Log In
+                Enter
               </button>
               <button
-                onClick={() => signIn("google")}
+                onClick={() => {
+                  ensureLocalAccessProfile();
+                  router.push("/project-access");
+                }}
                 className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
               >
-                Sign Up
+                Open Studio
               </button>
             </>
           )}
@@ -107,25 +115,19 @@ const LandingPage = () => {
           <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-6">
             <button
               onClick={() => {
-                if (session) {
-                  router.push("/project-access");
-                } else {
-                  signIn("google", { callbackUrl: "/project-access" });
-                }
+                ensureLocalAccessProfile();
+                router.push("/project-access");
               }}
               className="w-full md:w-auto px-10 py-5 rounded-full bg-white text-gray-900 font-bold text-lg hover:bg-cyan-50 transition-all shadow-xl hover:shadow-cyan-400/20 flex items-center justify-center space-x-2 transform hover:-translate-y-1"
             >
-              <span>{session ? "Launch Studio" : "Get Started"}</span>
+              <span>{hasLocalUser ? "Launch Studio" : "Get Started"}</span>
               <ArrowRight size={20} />
             </button>
 
             <button
               onClick={() => {
-                if (session) {
-                  router.push("/project-access");
-                } else {
-                  signIn("google", { callbackUrl: "/project-access" });
-                }
+                ensureLocalAccessProfile();
+                router.push("/project-access");
               }}
               className="w-full md:w-auto px-10 py-5 rounded-full bg-black/30 backdrop-blur-md text-white border border-white/20 font-bold text-lg hover:bg-black/40 transition-all flex items-center justify-center space-x-2"
             >

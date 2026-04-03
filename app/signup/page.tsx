@@ -1,24 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
 import ParticleBackground from "@/components/particle-background";
+import { ensureLocalAccessProfile } from "@/lib/auth";
 
 const Signup = () => {
   const router = useRouter();
-  const { status } = useSession();
 
   useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/project-access");
-    } else if (status === "unauthenticated") {
-      signIn("google", { callbackUrl: "/project-access" });
-    }
-  }, [status, router]);
+    ensureLocalAccessProfile();
+    router.replace("/project-access");
+  }, [router]);
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-900 via-blue-600 to-cyan-400">
@@ -45,7 +41,7 @@ const Signup = () => {
               Joining Draw Matrix...
             </h2>
             <p className="text-blue-100/70 text-sm">
-              Creating your secure workspace via Google.
+              Creating your local workspace.
             </p>
           </div>
         </div>
@@ -55,13 +51,6 @@ const Signup = () => {
             <div className="absolute inset-0 bg-blue-400 blur-2xl opacity-20 animate-pulse" />
             <Loader2 className="w-10 h-10 text-cyan-400 animate-spin relative z-10" />
           </div>
-
-          <button
-            onClick={() => signIn("google", { callbackUrl: "/project-access" })}
-            className="text-[10px] uppercase tracking-widest font-bold text-white/40 hover:text-white transition-colors"
-          >
-            Not redirecting? Click here
-          </button>
         </div>
       </motion.div>
     </div>
