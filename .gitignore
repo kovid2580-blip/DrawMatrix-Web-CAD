@@ -29,6 +29,19 @@ yarn-error.log*
 .env*.local
 .env.vercel.production
 dev.log
+build_log.txt
+lint_errors.txt
+lint_errors_utf8.txt
+lint_final.txt
+lint_results.txt
+local_lint.txt
+stream_lint.txt
+reference_list_output.txt
+reference_prod_list.txt
+final_ref_list.txt
+aliases.txt
+reference_prod.json
+tmp-verify-adjacency.ts
 
 # vercel
 .vercel
