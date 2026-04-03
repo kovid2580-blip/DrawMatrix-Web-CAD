@@ -3,8 +3,9 @@
 import { ReactNode, useEffect, useState } from "react";
 import { StreamVideo, StreamVideoClient } from "@stream-io/video-react-sdk";
 import "@stream-io/video-react-sdk/dist/css/styles.css";
+import { useCall } from "@/providers/CallContext";
 
-const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY?.trim();
 
 /** Get (or create) a stable anonymous user ID stored in localStorage. */
 function getAnonymousUserId(): string {
@@ -19,13 +20,20 @@ function getAnonymousUserId(): string {
 }
 
 const StreamClientProvider = ({ children }: { children: ReactNode }) => {
+  const { inCall, setError } = useCall();
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(
     null
   );
 
   useEffect(() => {
+    if (!inCall) {
+      setVideoClient(null);
+      return;
+    }
+
     if (!API_KEY) {
       console.warn("[Stream] NEXT_PUBLIC_STREAM_API_KEY is not set");
+      setError("Video calling is unavailable right now.");
       return;
     }
 
@@ -39,6 +47,7 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
         const displayName = savedName || `User-${userId.slice(-4)}`;
 
         console.log("[Stream] Initializing client for user:", userId);
+        setError(null);
 
         const tokenProvider = async () => {
           try {
@@ -79,6 +88,8 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (err) {
         console.error("[Stream] Client initialization failed:", err);
+        setVideoClient(null);
+        setError("Video calling is unavailable right now.");
       }
     };
 
@@ -87,12 +98,13 @@ const StreamClientProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
       if (client) {
-        // Ensure client is disconnected gracefully on unmount if needed
-        // But for development, keeping it alive often avoids refresh race conditions
+        void client.disconnectUser().catch(() => {
+          // Ignore cleanup failures to keep teardown non-fatal.
+        });
         console.log("[Stream] Cleanup: Component unmounting");
       }
     };
-  }, []);
+  }, [inCall, setError]);
 
   if (!videoClient) {
     return <>{children}</>;
