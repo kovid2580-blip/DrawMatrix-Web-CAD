@@ -8,14 +8,21 @@ export const socket = io(SOCKET_URL, {
   transports: ["websocket"],
 });
 
-export const USER_ID =
+const getStoredValue = (key: string, fallback: string) =>
   typeof window !== "undefined"
-    ? window.localStorage.getItem("cad_user_id") ||
-      Math.random().toString(36).substr(2, 9)
-    : "guest";
+    ? window.localStorage.getItem(key) || fallback
+    : fallback;
+
+export const USER_ID = getStoredValue(
+  "drawmatrix_user_id",
+  getStoredValue("drawmatrix_presence_key", "guest")
+);
 
 if (typeof window !== "undefined")
   window.localStorage.setItem("cad_user_id", USER_ID);
 
-export const USER_COLOR = `#${Math.floor(Math.random() * 16777215).toString(16)}`;
-export const USER_NAME = `Architect_${Math.floor(Math.random() * 1000)}`;
+export const USER_COLOR = getStoredValue("drawmatrix_user_color", "#38bdf8");
+export const USER_NAME = getStoredValue(
+  "drawmatrix_display_name",
+  "Guest User"
+);

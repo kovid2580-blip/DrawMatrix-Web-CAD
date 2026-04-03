@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getCurrentUserProfile, getOrCreatePresenceKey } from "@/lib/auth";
 import { socket } from "@/lib/socket";
 import { UserPresence, useThreeStore } from "@/store";
 
@@ -29,6 +30,12 @@ type MemberRecord = {
   _id: string;
   username: string;
   email: string;
+  assignedName?: string;
+  presenceKey?: string;
+  userId?: string;
+  status?: "online" | "offline";
+  isGuest?: boolean;
+  joinedOrder?: number;
 };
 
 type ScheduleItem = {
@@ -99,20 +106,29 @@ const SchedulesPage = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
-    if (!session?.user) return;
-
     if (!socket.connected) {
       socket.connect();
     }
 
-    socket.emit("join_project", ROOM_ID);
+    const profile = getCurrentUserProfile();
+    socket.emit("join_project", {
+      projectId: ROOM_ID,
+      userId: profile.userId,
+      username: profile.displayName,
+      email: profile.email || session?.user?.email || "",
+      presenceKey: getOrCreatePresenceKey(),
+    });
 
     const userPresence: UserPresence = {
-      id: session.user.email || Math.random().toString(),
-      name: session.user.name || "Anonymous",
-      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+      id: profile.userId || Math.random().toString(),
+      name: profile.displayName || session?.user?.name || "Guest User",
+      color:
+        (typeof window !== "undefined" &&
+          window.localStorage.getItem("drawmatrix_user_color")) ||
+        "#38bdf8",
       cursor: null,
       cameraPosition: [0, 5, 10],
+      status: "online",
     };
 
     socket.emit("presence-update", {
@@ -123,16 +139,19 @@ const SchedulesPage = () => {
 
     const handlePresenceUpdate = ({ userId, presence }: PresencePayload) => {
       updatePresence(userId, presence);
+      void fetchUsers();
     };
 
     const handlePresenceDisconnect = (userId: string) => {
       removePresence(userId);
+      void fetchUsers();
     };
 
     const handlePresenceList = (presenceMap: Record<string, UserPresence>) => {
       Object.values(presenceMap).forEach((presence) => {
         updatePresence(presence.id, presence);
       });
+      void fetchUsers();
     };
 
     socket.on("presence-update", handlePresenceUpdate);
@@ -144,7 +163,7 @@ const SchedulesPage = () => {
       socket.off("presence-disconnect", handlePresenceDisconnect);
       socket.off("room_presence_list", handlePresenceList);
     };
-  }, [removePresence, session, updatePresence]);
+  }, [fetchUsers, removePresence, session, updatePresence]);
 
   useEffect(() => {
     const loadMessagesAndSchedules = async () => {
@@ -269,10 +288,8 @@ const SchedulesPage = () => {
     }
   };
 
-  const offlineUsers = allUsers.filter(
-    (user) =>
-      !Object.values(presences).some((presence) => presence.id === user.email)
-  );
+  const onlineUsers = allUsers.filter((user) => user.status === "online");
+  const offlineUsers = allUsers.filter((user) => user.status !== "online");
 
   return (
     <div className="min-h-screen bg-slate-950 p-8 text-white">
@@ -357,23 +374,35 @@ const SchedulesPage = () => {
                   <DropdownMenuLabel className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-slate-500">
                     Active Now (Room {ROOM_ID})
                   </DropdownMenuLabel>
-                  {Object.values(presences).length > 0 ? (
-                    Object.values(presences).map((user) => (
+                  {onlineUsers.length > 0 ? (
+                    onlineUsers.map((user) => (
                       <DropdownMenuItem
-                        key={user.id}
+                        key={user._id}
                         className="flex cursor-default items-center justify-between rounded-lg p-2 hover:bg-white/5 focus:bg-white/5"
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-black"
-                            style={{ backgroundColor: user.color || "#3b82f6" }}
+                            style={{
+                              backgroundColor:
+                                Object.values(presences).find(
+                                  (presence) =>
+                                    presence.id === (user.userId || user.email)
+                                )?.color || "#3b82f6",
+                            }}
                           >
-                            {user.name ? user.name[0] : "?"}
+                            {(user.assignedName || user.username || "?")[0]}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-white">
-                              {user.name}{" "}
-                              {user.id === session?.user?.email ? "(You)" : ""}
+                              {user.assignedName || user.username}{" "}
+                              {(user.userId &&
+                                user.userId ===
+                                  getCurrentUserProfile().userId) ||
+                              (user.email &&
+                                user.email === session?.user?.email)
+                                ? "(You)"
+                                : ""}
                             </span>
                             <span className="text-[9px] uppercase tracking-tighter text-green-500">
                               Online
@@ -403,11 +432,13 @@ const SchedulesPage = () => {
                         >
                           <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-[10px] font-black text-slate-400">
-                              {user.username ? user.username[0] : "U"}
+                              {(user.assignedName || user.username || "U")[0]}
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs font-bold text-slate-400">
-                                {user.username || user.email}
+                                {user.assignedName ||
+                                  user.username ||
+                                  user.email}
                               </span>
                               <span className="text-[9px] uppercase tracking-tighter text-slate-600">
                                 Offline

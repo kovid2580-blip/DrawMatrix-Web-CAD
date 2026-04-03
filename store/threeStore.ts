@@ -71,6 +71,7 @@ export interface UserPresence {
   color: string;
   cursor: [number, number, number] | null;
   cameraPosition: [number, number, number];
+  status?: "online" | "offline";
 }
 
 interface HistoryOptions {

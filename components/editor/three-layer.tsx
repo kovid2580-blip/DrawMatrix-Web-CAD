@@ -31,6 +31,7 @@ import {
   useThreeStore,
 } from "@/store";
 import { socket } from "@/lib/socket";
+import { getCurrentUserProfile, getOrCreatePresenceKey } from "@/lib/auth";
 import { GeometryEngine } from "@/lib/geometryEngine";
 import { getLocalProjectById } from "@/lib/project-storage";
 import { useAIStore } from "@/store/ai-store";
@@ -445,10 +446,18 @@ const ThreeScene = ({
     socket.connect();
 
     if (projectId) {
+      const profile = getCurrentUserProfile();
+      const currentColor =
+        (typeof window !== "undefined" &&
+          window.localStorage.getItem("drawmatrix_user_color")) ||
+        USER_COLOR;
       socket.emit("join_project", {
         projectId,
-        userId: USER_ID,
-        username: USER_NAME,
+        userId: profile.userId || USER_ID,
+        username: profile.displayName || USER_NAME,
+        email: profile.email || "",
+        presenceKey: getOrCreatePresenceKey(),
+        color: currentColor,
       });
     }
 
@@ -675,19 +684,25 @@ const ThreeScene = ({
       // Presence Update - Throttled to 100ms
       const now = Date.now();
       if (now - lastPresenceEmitRef.current > 100) {
+        const profile = getCurrentUserProfile();
+        const currentColor =
+          (typeof window !== "undefined" &&
+            window.localStorage.getItem("drawmatrix_user_color")) ||
+          USER_COLOR;
         socket.emit("presence-update", {
           projectId,
-          userId: USER_ID,
+          userId: profile.userId || USER_ID,
           presence: {
-            id: USER_ID,
-            name: USER_NAME,
-            color: USER_COLOR,
+            id: profile.userId || USER_ID,
+            name: profile.displayName || USER_NAME,
+            color: currentColor,
             cursor: [pt.x, pt.y, pt.z],
             cameraPosition: [
               camera.position.x,
               camera.position.y,
               camera.position.z,
             ],
+            status: "online",
           },
         });
         lastPresenceEmitRef.current = now;

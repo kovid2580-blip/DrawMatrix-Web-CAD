@@ -6,6 +6,7 @@ export const AUTH_STORAGE_KEYS = [
   "drawmatrix_token",
   "drawmatrix_user_id",
   "drawmatrix_user_email",
+  "drawmatrix_user_color",
   "drawmatrix_meeting_name",
   "drawmatrix_presence_key",
 ] as const;
