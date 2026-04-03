@@ -18,7 +18,21 @@ type ZegoMeetingInstance = {
   hangUp: () => void;
 };
 
-const createUserId = () => `user-${Math.random().toString(36).slice(2, 10)}`;
+const getStableMeetingUserId = (roomId: string) => {
+  if (typeof window === "undefined") {
+    return `user-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  const storageKey = `drawmatrix_meeting_user_id:${roomId}`;
+  const existing = window.localStorage.getItem(storageKey);
+  if (existing) {
+    return existing;
+  }
+
+  const generated = `user-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(storageKey, generated);
+  return generated;
+};
 
 const ZegoMeetingRoom = ({
   roomId,
@@ -33,7 +47,7 @@ const ZegoMeetingRoom = ({
   const onLeaveRoomRef = useRef(onLeaveRoom);
   const onStatusChangeRef = useRef(onStatusChange);
   const [error, setError] = useState<string | null>(null);
-  const userId = useMemo(() => createUserId(), []);
+  const userId = useMemo(() => getStableMeetingUserId(roomId), [roomId]);
 
   useEffect(() => {
     onLeaveRoomRef.current = onLeaveRoom;
