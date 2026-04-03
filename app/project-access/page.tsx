@@ -6,9 +6,11 @@ import { motion } from "framer-motion";
 import { ArrowRight, Hash, Key, Lock, Shield } from "lucide-react";
 
 import ParticleBackground from "@/components/particle-background";
+import { getCurrentUserProfile } from "@/lib/auth";
 
 const ProjectAccessPage = () => {
   const router = useRouter();
+  const profile = getCurrentUserProfile();
   const [formData, setFormData] = useState({
     projectId: "",
     password: "",
@@ -57,6 +59,14 @@ const ProjectAccessPage = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
+              <div className="space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80 ml-1">
+                  User Name
+                </div>
+                <div className="ml-1 text-base font-bold text-white">
+                  {profile.displayName || "Kovid"}
+                </div>
+              </div>
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 ml-1">
                 Project ID
               </label>

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   AlignLeft,
   Box as Box3DIcon,
+  ChevronDown,
   Circle as CircleIcon,
   Clock,
   Construction,
@@ -50,12 +51,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import {
-  ThreeObject,
-  ThreeObjectType,
-  UserPresence,
-  useThreeStore,
-} from "@/store";
+import { ThreeObject, ThreeObjectType, useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
 import { socket } from "@/lib/socket";
 import { useCall } from "@/providers/CallContext";
@@ -140,13 +136,17 @@ const Ribbon = ({
     projectId,
     undo,
     redo,
-    presences,
   } = useThreeStore();
   const { data: session } = useSession();
   const { inCall, joinCall, leaveCall } = useCall();
   const { toggleOpen: toggleAI, isOpen: isAIOpen } = useAIStore();
 
   const [autoSaveInterval, setAutoSaveInterval] = useState<number | null>(null);
+  const [isParticipantMenuOpen, setIsParticipantMenuOpen] = useState(false);
+  const [participants, setParticipants] = useState([
+    { id: "kovid", name: "Kovid", isHost: true },
+    { id: "mohith", name: "Mohith", isHost: false },
+  ]);
 
   const handleSave = useCallback(async () => {
     if (!projectId) return;
@@ -217,6 +217,19 @@ const Ribbon = ({
   const handleLogout = () => {
     router.push("/dashboard");
   };
+
+  const handleMakeHost = (participantId: string) => {
+    setParticipants((current) =>
+      current.map((participant) => ({
+        ...participant,
+        isHost: participant.id === participantId,
+      }))
+    );
+    setIsParticipantMenuOpen(false);
+  };
+
+  const activeHost =
+    participants.find((participant) => participant.isHost) || participants[0];
 
   const handleCreateObject = (
     type: ThreeObjectType,
@@ -335,21 +348,62 @@ const Ribbon = ({
           </button>
         </div>
 
-        {/* Participants Presence List */}
-        <div className="flex items-center -space-x-2 mr-4 group px-2 border-l border-white/10 ml-2">
-          {Object.values(presences).map((user: UserPresence) => (
-            <div
-              key={user.id}
-              title={user.name}
-              className="w-7 h-7 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white bg-gray-800 transition-transform hover:scale-110 hover:z-10 cursor-help"
-              style={{ borderColor: user.color }}
-            >
-              {(user.name || "U").charAt(0).toUpperCase()}
+        <div className="relative mr-4 ml-2 border-l border-white/10 pl-3">
+          <button
+            onClick={() => setIsParticipantMenuOpen((value) => !value)}
+            className="flex items-center gap-1.5 rounded-full border border-amber-400 bg-gray-800/90 px-2 py-1 text-white transition hover:bg-gray-700"
+            title="Participants"
+          >
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-[11px] font-black">
+              {(activeHost.name || "K").charAt(0).toUpperCase()}
             </div>
-          ))}
-          {Object.keys(presences).length === 0 && (
-            <div className="text-[9px] text-gray-500 italic">
-              No one else here
+            <ChevronDown
+              size={13}
+              className={`text-gray-300 transition-transform ${isParticipantMenuOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {isParticipantMenuOpen && (
+            <div className="absolute right-0 top-10 z-50 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#1f2023] shadow-2xl">
+              <div className="border-b border-white/10 px-4 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-400">
+                  Participants
+                </div>
+              </div>
+              <div className="p-2">
+                {participants.map((participant) => (
+                  <div
+                    key={participant.id}
+                    className="rounded-xl px-2 py-2 hover:bg-white/5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-gray-800 text-xs font-black text-white">
+                          {participant.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold text-white">
+                            {participant.name}
+                            {participant.isHost && (
+                              <span className="ml-1 text-xs font-bold text-amber-300">
+                                (Host)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {!participant.isHost && (
+                        <button
+                          onClick={() => handleMakeHost(participant.id)}
+                          className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300 transition hover:bg-cyan-500/20"
+                        >
+                          Make Host
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
