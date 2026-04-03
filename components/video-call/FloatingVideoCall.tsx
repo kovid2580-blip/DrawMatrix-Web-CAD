@@ -4,12 +4,13 @@ import React, { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Maximize2, Minimize2, Video, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 
 import { useCall } from "@/providers/CallContext";
+import { getCurrentUserProfile } from "@/lib/auth";
 
-// Dynamically import StreamVideoCall to avoid SSR
-const StreamVideoCall = dynamic(
-  () => import("@/components/video-call/StreamVideoCall"),
+const ZegoMeetingRoom = dynamic(
+  () => import("@/components/video-call/ZegoMeetingRoom"),
   {
     ssr: false,
     loading: () => (
@@ -22,9 +23,15 @@ const StreamVideoCall = dynamic(
 );
 
 export const FloatingVideoCall = () => {
+  const pathname = usePathname();
   const { inCall, channelName, isMinimized, leaveCall, toggleMinimize } =
     useCall();
   const constraintsRef = useRef(null);
+  const profile = getCurrentUserProfile();
+
+  if (pathname === "/video-call") {
+    return null;
+  }
 
   return (
     <>
@@ -87,9 +94,13 @@ export const FloatingVideoCall = () => {
               </div>
             </div>
 
-            {/* Stream Video */}
+            {/* ZEGOCLOUD Video */}
             <div className="flex-1 relative overflow-hidden">
-              <StreamVideoCall roomName={channelName} onEndCall={leaveCall} />
+              <ZegoMeetingRoom
+                roomId={channelName}
+                displayName={profile.displayName || "Guest"}
+                onLeaveRoom={leaveCall}
+              />
             </div>
           </motion.div>
         )}

@@ -20,6 +20,7 @@
     "@react-three/fiber": "^8.18.0",
     "@stream-io/node-sdk": "^0.7.42",
     "@stream-io/video-react-sdk": "^1.34.1",
+    "@zegocloud/zego-uikit-prebuilt": "^2.17.3",
     "agora-rtc-react": "^2.5.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

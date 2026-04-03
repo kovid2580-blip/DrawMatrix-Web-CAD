@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { CallProvider } from "@/providers/CallContext";
-import StreamClientProvider from "@/providers/StreamClientProvider";
 import { FloatingVideoCall } from "@/components/video-call/FloatingVideoCall";
 import { NextAuthProvider } from "@/providers/NextAuthProvider";
 
@@ -28,10 +27,8 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
         >
           <NextAuthProvider>
             <CallProvider>
-              <StreamClientProvider>
-                {children}
-                <FloatingVideoCall />
-              </StreamClientProvider>
+              {children}
+              <FloatingVideoCall />
             </CallProvider>
           </NextAuthProvider>
         </ThemeProvider>
