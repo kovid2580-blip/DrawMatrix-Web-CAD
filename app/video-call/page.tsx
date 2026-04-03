@@ -2,7 +2,15 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, Copy, Loader2, Users, Video } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Loader2,
+  Minimize2,
+  Users,
+  Video,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { getCurrentUserProfile } from "@/lib/auth";
@@ -24,8 +32,16 @@ const ZegoMeetingRoom = dynamic(
 const VideoCallPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { joinCall, leaveCall, inCall, channelName, isInitiator, error } =
-    useCall();
+  const {
+    joinCall,
+    leaveCall,
+    inCall,
+    channelName,
+    isInitiator,
+    error,
+    isMinimized,
+    toggleMinimize,
+  } = useCall();
   const profile = useMemo(() => getCurrentUserProfile(), []);
 
   const roomIdFromLink = searchParams.get("roomID") || "";
@@ -73,6 +89,13 @@ const VideoCallPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleMinimizeToFloatingWindow = () => {
+    if (!isMinimized) {
+      toggleMinimize();
+    }
+    router.push("/dashboard");
+  };
+
   if (inCall && channelName) {
     return (
       <div className="min-h-screen bg-slate-950 px-4 py-6 text-white">
@@ -101,12 +124,21 @@ const VideoCallPage = () => {
               ? "Host controls are enabled. Use the participant list to remove people, or end the whole call below."
               : "You joined as a participant."}
           </div>
-          <button
-            onClick={leaveCall}
-            className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-rose-200 transition hover:bg-rose-500/25"
-          >
-            {isInitiator ? "End For All" : "Leave Call"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleMinimizeToFloatingWindow}
+              className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-cyan-200 transition hover:bg-cyan-500/20"
+            >
+              <Minimize2 size={14} />
+              Minimize
+            </button>
+            <button
+              onClick={leaveCall}
+              className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-rose-200 transition hover:bg-rose-500/25"
+            >
+              {isInitiator ? "End For All" : "Leave Call"}
+            </button>
+          </div>
         </div>
         <ZegoMeetingRoom
           roomId={channelName}
