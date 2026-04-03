@@ -34,6 +34,7 @@ const EditorPage = () => {
     setLayers,
     setActiveLayer,
     setSelectedObjectId,
+    setRole,
     resetHistory,
     undo,
     redo,
@@ -101,6 +102,7 @@ const EditorPage = () => {
         window.prompt("Enter a name for your new sheet:", "Untitled Sheet") ||
         "Untitled Sheet";
       const newId = Math.random().toString(36).substring(2, 9);
+      setRole("Admin");
       setObjects([]);
       setLayers([
         {
@@ -120,6 +122,7 @@ const EditorPage = () => {
       if (localProject) {
         try {
           const parsed = JSON.parse(localProject.content);
+          setRole("Admin");
           setObjects(Array.isArray(parsed.objects) ? parsed.objects : []);
           setLayers(
             Array.isArray(parsed.layers) && parsed.layers.length > 0
@@ -144,6 +147,7 @@ const EditorPage = () => {
         }
       }
 
+      setRole("Admin");
       // Fall back to the realtime backend load path when local data is unavailable.
       setProjectInfo(pid, projectName || "Loading...");
     }
@@ -153,6 +157,7 @@ const EditorPage = () => {
     setObjects,
     setLayers,
     setActiveLayer,
+    setRole,
     resetHistory,
     projectName,
   ]);

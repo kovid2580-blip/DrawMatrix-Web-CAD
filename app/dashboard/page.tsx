@@ -18,6 +18,7 @@ import {
 
 import {
   getLocalProjects,
+  mergeProjectLists,
   normalizeProjectListPayload,
   ProjectListItem,
 } from "@/lib/project-storage";
@@ -56,8 +57,9 @@ const Dashboard = () => {
         if (res.ok) {
           const payload = await res.json();
           const cloudProjects = normalizeProjectListPayload(payload);
-          // Take top 3
-          setRecentProjects(cloudProjects.slice(0, 3));
+          setRecentProjects(
+            mergeProjectLists(getLocalProjects(), cloudProjects).slice(0, 3)
+          );
           setLoading(false);
           return;
         }

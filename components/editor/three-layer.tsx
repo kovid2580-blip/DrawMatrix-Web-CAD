@@ -23,6 +23,7 @@ import {
 import * as THREE from "three";
 
 import {
+  DEFAULT_LAYER_ID,
   Layer,
   ThreeObject,
   ThreeObjectType,
@@ -31,6 +32,7 @@ import {
 } from "@/store";
 import { socket } from "@/lib/socket";
 import { GeometryEngine } from "@/lib/geometryEngine";
+import { getLocalProjectById } from "@/lib/project-storage";
 import { useAIStore } from "@/store/ai-store";
 
 import { RemoteCursors } from "./remote-cursors";
@@ -451,10 +453,49 @@ const ThreeScene = ({
     }
 
     socket.on("load_project", (data) => {
+      const activeProjectId = useThreeStore.getState().projectId;
+      const localProject = activeProjectId
+        ? getLocalProjectById(activeProjectId)
+        : null;
+
+      if (localProject) {
+        try {
+          const parsed = JSON.parse(localProject.content);
+          const localObjects = Array.isArray(parsed.objects)
+            ? parsed.objects
+            : [];
+          const localLayers = Array.isArray(parsed.layers) ? parsed.layers : [];
+          const remoteObjects = Array.isArray(data.objects) ? data.objects : [];
+          const remoteLayers = Array.isArray(data.layers) ? data.layers : [];
+          const remoteIsEmpty =
+            remoteObjects.length === 0 && remoteLayers.length === 0;
+
+          if (remoteIsEmpty && localObjects.length > 0) {
+            setObjects(localObjects);
+            if (localLayers.length > 0) {
+              setLayers(localLayers);
+            }
+            useThreeStore.setState({
+              projectName:
+                localProject.name || data.projectName || "Untitled Sheet",
+              activeLayerId: parsed.activeLayerId || DEFAULT_LAYER_ID,
+            });
+            useThreeStore.getState().resetHistory();
+            return;
+          }
+        } catch (error) {
+          console.error(
+            "Failed to parse local project during socket load:",
+            error
+          );
+        }
+      }
+
       if (data.objects) setObjects(data.objects);
       if (data.layers) setLayers(data.layers);
-      if (data.projectName)
+      if (data.projectName) {
         useThreeStore.setState({ projectName: data.projectName });
+      }
       useThreeStore.getState().resetHistory();
     });
 

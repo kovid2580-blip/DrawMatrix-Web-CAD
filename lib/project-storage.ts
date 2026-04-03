@@ -31,6 +31,41 @@ export const normalizeProjectListPayload = (
   return [];
 };
 
+export const mergeProjectLists = (
+  localProjects: StoredProject[],
+  cloudProjects: ProjectListItem[]
+): StoredProject[] => {
+  const merged = new Map<string, StoredProject>();
+
+  localProjects.forEach((project) => {
+    merged.set(project.id, project);
+  });
+
+  cloudProjects.forEach((project) => {
+    const id = project.projectId || project.id;
+    if (!id) return;
+
+    const mappedProject: StoredProject = {
+      id,
+      name: project.name,
+      content: project.content || merged.get(id)?.content || "",
+      lastModified:
+        project.lastModified ||
+        project.updatedAt ||
+        project.createdAt ||
+        merged.get(id)?.lastModified ||
+        new Date().toISOString(),
+    };
+
+    merged.set(id, mappedProject);
+  });
+
+  return Array.from(merged.values()).sort(
+    (a, b) =>
+      new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+  );
+};
+
 export const getLocalProjects = (): StoredProject[] => {
   if (typeof window === "undefined") return [];
 

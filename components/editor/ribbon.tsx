@@ -131,6 +131,7 @@ const Ribbon = ({
     viewMode,
     addObject,
     activeLayerId,
+    layers,
     setViewMode,
     cinematicMode,
     setCinematicMode,
@@ -152,33 +153,7 @@ const Ribbon = ({
 
     const snapshot = getSnapshot();
     const timestamp = new Date().toISOString();
-
-    if (session?.user?.email) {
-      const projectData = {
-        projectId,
-        name: projectName || "Untitled Project",
-        ownerEmail: session.user.email,
-        objects: snapshot,
-        layers: [],
-        config: {
-          unitSystem: "metric",
-          gridSpacing: 1,
-        },
-      };
-
-      try {
-        const res = await fetch(`/api/projects/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(projectData),
-        });
-        if (res.ok) {
-          console.log("[Cloud] Project saved successfully to MongoDB");
-        }
-      } catch (err) {
-        console.error("[Cloud] Failed to save project:", err);
-      }
-    }
+    const ownerEmail = session?.user?.email || "guest";
 
     saveLocalProject({
       id: projectId,
@@ -186,7 +161,32 @@ const Ribbon = ({
       content: snapshot,
       lastModified: timestamp,
     });
-  }, [getSnapshot, projectId, projectName, session?.user?.email]);
+
+    const projectData = {
+      projectId,
+      name: projectName || "Untitled Project",
+      ownerEmail,
+      objects: snapshot,
+      layers,
+      config: {
+        unitSystem: "metric",
+        gridSpacing: 1,
+      },
+    };
+
+    try {
+      const res = await fetch(`/api/projects/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(projectData),
+      });
+      if (res.ok) {
+        console.log("[Cloud] Project saved successfully to MongoDB");
+      }
+    } catch (err) {
+      console.error("[Cloud] Failed to save project:", err);
+    }
+  }, [getSnapshot, layers, projectId, projectName, session?.user?.email]);
 
   useEffect(() => {
     if (!autoSaveInterval) return;

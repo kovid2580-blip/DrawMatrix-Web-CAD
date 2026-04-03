@@ -8,6 +8,7 @@ import { ArrowLeft, Clock, FileText, Loader2, Save } from "lucide-react";
 import {
   deleteLocalProject,
   getLocalProjects,
+  mergeProjectLists,
   normalizeProjectListPayload,
   renameLocalProject,
   StoredProject,
@@ -38,21 +39,9 @@ const ProjectsPage = () => {
         if (res.ok) {
           const payload = await res.json();
           const cloudProjects = normalizeProjectListPayload(payload);
-          if (cloudProjects.length > 0) {
-            const mapped: StoredProject[] = cloudProjects.map((project) => ({
-              id: project.projectId || project.id || crypto.randomUUID(),
-              name: project.name,
-              content: project.content || "",
-              lastModified:
-                project.lastModified ||
-                project.updatedAt ||
-                project.createdAt ||
-                new Date().toISOString(),
-            }));
-            setProjects(mapped);
-            setLoading(false);
-            return;
-          }
+          setProjects(mergeProjectLists(getLocalProjects(), cloudProjects));
+          setLoading(false);
+          return;
         }
       } catch (err) {
         console.error("Cloud fetch failed, falling back to local:", err);
