@@ -1,0 +1,62 @@
+import { useEffect, useState } from "react";
+
+export const AUTH_STORAGE_KEYS = [
+  "dm_auth_mock",
+  "drawmatrix_display_name",
+  "drawmatrix_token",
+  "drawmatrix_user_id",
+  "drawmatrix_user_email",
+  "drawmatrix_meeting_name",
+  "drawmatrix_presence_key",
+] as const;
+
+export const isAuthenticated = () => {
+  // Temporary bypass: allow app usage without login while auth backend is unstable.
+  return true;
+};
+
+export const clearAuthStorage = () => {
+  if (typeof window === "undefined") return;
+
+  AUTH_STORAGE_KEYS.forEach((key) => {
+    window.localStorage.removeItem(key);
+  });
+};
+
+export const getCurrentUserProfile = () => {
+  if (typeof window === "undefined") {
+    return {
+      displayName: "Guest User",
+      email: "",
+      userId: "guest",
+    };
+  }
+
+  const displayName =
+    window.localStorage.getItem("drawmatrix_display_name") || "Guest User";
+  const email = window.localStorage.getItem("drawmatrix_user_email") || "";
+  const userId = window.localStorage.getItem("drawmatrix_user_id") || "guest";
+
+  return { displayName, email, userId };
+};
+
+export const getOrCreatePresenceKey = () => {
+  if (typeof window === "undefined") return "";
+
+  const existing = window.localStorage.getItem("drawmatrix_presence_key");
+  if (existing) return existing;
+
+  const generated = `presence-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  window.localStorage.setItem("drawmatrix_presence_key", generated);
+  return generated;
+};
+
+export const useRequireAuth = () => {
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    setIsCheckingAuth(false);
+  }, []);
+
+  return { isCheckingAuth };
+};
