@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getCurrentUserProfile, getOrCreatePresenceKey } from "@/lib/auth";
+import { buildBackendUrl } from "@/lib/api-base";
 import { socket } from "@/lib/socket";
 import { UserPresence, useThreeStore } from "@/store";
 
@@ -97,65 +98,85 @@ const SchedulesPage = () => {
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [newType, setNewType] = useState("Meeting");
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(
+    socket.connected
+  );
   const isInitialLoad = useRef(true);
-
-  const apiBaseUrl =
-    process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
 
   const fetchUsers = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/get-users`);
+      const response = await fetch(buildBackendUrl("/get-users"));
       if (!response.ok) {
         throw new Error("Server response not ok");
       }
 
       const data: unknown = await response.json();
       if (Array.isArray(data)) {
-        setAllUsers(
-          data.map((member) => normalizeMemberRecord(member as MemberRecord))
-        );
+        const dedupedUsers = Array.from(
+          data
+            .map((member) => normalizeMemberRecord(member as MemberRecord))
+            .reduce((map, member) => {
+              const identityKey =
+                member.userId ||
+                member.presenceKey ||
+                member.email ||
+                member._id;
+              const existing = map.get(identityKey);
+
+              if (
+                !existing ||
+                (existing.status !== "online" && member.status === "online")
+              ) {
+                map.set(identityKey, member);
+              }
+
+              return map;
+            }, new Map<string, MemberRecord>())
+            .values()
+        ).sort((a, b) => (a.joinedOrder ?? 999) - (b.joinedOrder ?? 999));
+
+        setAllUsers(dedupedUsers);
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
       setAllUsers([]);
     }
-  }, [apiBaseUrl]);
+  }, []);
 
   useEffect(() => {
     void fetchUsers();
   }, [fetchUsers]);
 
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
+    const joinRealtimeRoom = () => {
+      const realtimeProfile = getCurrentUserProfile();
+      const presenceKey = getOrCreatePresenceKey();
+      const userPresence: UserPresence = {
+        id: realtimeProfile.userId || Math.random().toString(),
+        name: realtimeProfile.displayName || session?.user?.name || "Guest",
+        color:
+          (typeof window !== "undefined" &&
+            window.localStorage.getItem("drawmatrix_user_color")) ||
+          "#38bdf8",
+        cursor: null,
+        cameraPosition: [0, 5, 10],
+        status: "online",
+      };
 
-    const profile = getCurrentUserProfile();
-    socket.emit("join_project", {
-      projectId: ROOM_ID,
-      userId: profile.userId,
-      username: profile.displayName,
-      email: profile.email || session?.user?.email || "",
-      presenceKey: getOrCreatePresenceKey(),
-    });
+      socket.emit("join_project", {
+        projectId: ROOM_ID,
+        userId: realtimeProfile.userId,
+        username: realtimeProfile.displayName,
+        email: realtimeProfile.email || session?.user?.email || "",
+        presenceKey,
+      });
 
-    const userPresence: UserPresence = {
-      id: profile.userId || Math.random().toString(),
-      name: profile.displayName || session?.user?.name || "Guest User",
-      color:
-        (typeof window !== "undefined" &&
-          window.localStorage.getItem("drawmatrix_user_color")) ||
-        "#38bdf8",
-      cursor: null,
-      cameraPosition: [0, 5, 10],
-      status: "online",
+      socket.emit("presence-update", {
+        projectId: ROOM_ID,
+        userId: userPresence.id,
+        presence: userPresence,
+      });
     };
-
-    socket.emit("presence-update", {
-      projectId: ROOM_ID,
-      userId: userPresence.id,
-      presence: userPresence,
-    });
 
     const handlePresenceUpdate = ({ userId, presence }: PresencePayload) => {
       updatePresence(userId, presence);
@@ -174,11 +195,38 @@ const SchedulesPage = () => {
       void fetchUsers();
     };
 
+    const handleConnect = () => {
+      setIsRealtimeConnected(true);
+      joinRealtimeRoom();
+      void fetchUsers();
+    };
+
+    const handleDisconnect = () => {
+      setIsRealtimeConnected(false);
+    };
+
+    const handleConnectError = () => {
+      setIsRealtimeConnected(false);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+
     socket.on("presence-update", handlePresenceUpdate);
     socket.on("presence-disconnect", handlePresenceDisconnect);
     socket.on("room_presence_list", handlePresenceList);
 
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.connect();
+    }
+
     return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
       socket.off("presence-update", handlePresenceUpdate);
       socket.off("presence-disconnect", handlePresenceDisconnect);
       socket.off("room_presence_list", handlePresenceList);
@@ -189,7 +237,7 @@ const SchedulesPage = () => {
     const loadMessagesAndSchedules = async () => {
       try {
         const messagesResponse = await fetch(
-          `${apiBaseUrl}/api/messages?projectId=${ROOM_ID}`
+          buildBackendUrl(`/api/messages?projectId=${ROOM_ID}`)
         );
         const messagesData: unknown = await messagesResponse.json();
         if (Array.isArray(messagesData) && messagesData.length > 0) {
@@ -204,7 +252,7 @@ const SchedulesPage = () => {
 
       try {
         const schedulesResponse = await fetch(
-          `${apiBaseUrl}/api/schedules?projectId=${ROOM_ID}`
+          buildBackendUrl(`/api/schedules?projectId=${ROOM_ID}`)
         );
         const schedulesData: unknown = await schedulesResponse.json();
         if (Array.isArray(schedulesData)) {
@@ -227,7 +275,7 @@ const SchedulesPage = () => {
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [apiBaseUrl]);
+  }, []);
 
   const cleanupSchedules = useCallback(() => {
     const now = new Date();
@@ -252,11 +300,12 @@ const SchedulesPage = () => {
   }, [cleanupSchedules]);
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !session?.user) return;
+    if (!newMessage.trim()) return;
+    const author = currentProfile.displayName || session?.user?.name || "Guest";
 
     const message: Omit<FeedMessage, "id"> & { projectId: string } = {
       projectId: ROOM_ID,
-      user: session.user.name || "Anonymous",
+      user: author,
       text: newMessage,
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -282,7 +331,7 @@ const SchedulesPage = () => {
     };
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/schedules`, {
+      const response = await fetch(buildBackendUrl("/api/schedules"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(scheduleData),
@@ -301,7 +350,9 @@ const SchedulesPage = () => {
 
   const handleDeleteSchedule = async (id: string) => {
     try {
-      await fetch(`${apiBaseUrl}/api/schedules/${id}`, { method: "DELETE" });
+      await fetch(buildBackendUrl(`/api/schedules/${id}`), {
+        method: "DELETE",
+      });
       setSchedules((prev) => prev.filter((schedule) => schedule._id !== id));
     } catch (error) {
       console.error("Failed to delete schedule:", error);
@@ -377,9 +428,13 @@ const SchedulesPage = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 transition-all active:scale-95 hover:bg-white/10">
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                      <span
+                        className={`h-2 w-2 rounded-full ${isRealtimeConnected ? "animate-pulse bg-green-500" : "bg-amber-500"}`}
+                      />
                       <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-colors group-hover:text-white">
-                        Live Online
+                        {isRealtimeConnected
+                          ? "Live Online"
+                          : "Realtime Offline"}
                       </span>
                       <ChevronDown
                         size={12}
@@ -434,7 +489,9 @@ const SchedulesPage = () => {
                     ))
                   ) : (
                     <div className="px-2 py-3 text-center text-xs italic text-slate-600">
-                      Connecting to signaling server...
+                      {isRealtimeConnected
+                        ? "No users active right now"
+                        : "Connecting to signaling server..."}
                     </div>
                   )}
 

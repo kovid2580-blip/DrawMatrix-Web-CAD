@@ -22,7 +22,4 @@ if (typeof window !== "undefined")
   window.localStorage.setItem("cad_user_id", USER_ID);
 
 export const USER_COLOR = getStoredValue("drawmatrix_user_color", "#38bdf8");
-export const USER_NAME = getStoredValue(
-  "drawmatrix_display_name",
-  "Guest User"
-);
+export const USER_NAME = getStoredValue("drawmatrix_display_name", "Guest");
