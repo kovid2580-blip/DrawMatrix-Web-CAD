@@ -38,6 +38,24 @@ type MemberRecord = {
   joinedOrder?: number;
 };
 
+const normalizeMemberRecord = (
+  member: Partial<MemberRecord>
+): MemberRecord => ({
+  _id:
+    typeof member._id === "string"
+      ? member._id
+      : `usr-${Math.random().toString(36).slice(2, 10)}`,
+  username: member.username || member.assignedName || "Guest User",
+  email: member.email || "",
+  assignedName: member.assignedName || member.username || "Guest User",
+  presenceKey: member.presenceKey || "",
+  userId: member.userId || member.presenceKey || member.email || "",
+  status: member.status === "online" ? "online" : "offline",
+  isGuest: Boolean(member.isGuest),
+  joinedOrder:
+    typeof member.joinedOrder === "number" ? member.joinedOrder : 999,
+});
+
 type ScheduleItem = {
   _id: string;
   title: string;
@@ -93,7 +111,9 @@ const SchedulesPage = () => {
 
       const data: unknown = await response.json();
       if (Array.isArray(data)) {
-        setAllUsers(data as MemberRecord[]);
+        setAllUsers(
+          data.map((member) => normalizeMemberRecord(member as MemberRecord))
+        );
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -290,6 +310,7 @@ const SchedulesPage = () => {
 
   const onlineUsers = allUsers.filter((user) => user.status === "online");
   const offlineUsers = allUsers.filter((user) => user.status !== "online");
+  const currentProfile = getCurrentUserProfile();
 
   return (
     <div className="min-h-screen bg-slate-950 p-8 text-white">
@@ -397,8 +418,7 @@ const SchedulesPage = () => {
                             <span className="text-xs font-bold text-white">
                               {user.assignedName || user.username}{" "}
                               {(user.userId &&
-                                user.userId ===
-                                  getCurrentUserProfile().userId) ||
+                                user.userId === currentProfile.userId) ||
                               (user.email &&
                                 user.email === session?.user?.email)
                                 ? "(You)"
