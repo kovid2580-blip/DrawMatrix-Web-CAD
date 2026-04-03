@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { buildBackendUrl } from "@/lib/api-base";
-
 const DEFAULT_LOCAL_DISPLAY_NAME = "Kovid";
 
 export const AUTH_STORAGE_KEYS = [
@@ -13,7 +11,6 @@ export const AUTH_STORAGE_KEYS = [
   "drawmatrix_user_color",
   "drawmatrix_meeting_name",
   "drawmatrix_presence_key",
-  "drawmatrix_profile_sync_key",
 ] as const;
 
 export const isAuthenticated = () => {
@@ -125,85 +122,6 @@ export const getOrCreatePresenceKey = () => {
   const generated = `presence-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
   window.localStorage.setItem("drawmatrix_presence_key", generated);
   return generated;
-};
-
-export const syncAssignedIdentity = async () => {
-  if (typeof window === "undefined") {
-    return {
-      changed: false,
-      profile: {
-        displayName: DEFAULT_LOCAL_DISPLAY_NAME,
-        email: "",
-        userId: "guest",
-      },
-    };
-  }
-
-  const localProfile = ensureLocalAccessProfile();
-  const presenceKey = getOrCreatePresenceKey();
-  const lastSyncedPresenceKey =
-    window.localStorage.getItem("drawmatrix_profile_sync_key") || "";
-
-  if (
-    lastSyncedPresenceKey === presenceKey &&
-    localProfile.displayName !== DEFAULT_LOCAL_DISPLAY_NAME &&
-    localProfile.displayName !== "Guest User"
-  ) {
-    return { changed: false, profile: localProfile };
-  }
-
-  try {
-    const response = await fetch(buildBackendUrl("/upsert-user"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        presenceKey,
-        email: localProfile.email || "",
-        username: localProfile.displayName || DEFAULT_LOCAL_DISPLAY_NAME,
-      }),
-    });
-
-    if (!response.ok) {
-      return { changed: false, profile: localProfile };
-    }
-
-    const data = (await response.json()) as {
-      user?: {
-        assignedName?: string;
-        username?: string;
-        email?: string;
-        userId?: string;
-        presenceKey?: string;
-      };
-    };
-    const assignedUser = data.user;
-    const nextProfile = {
-      displayName:
-        assignedUser?.assignedName ||
-        assignedUser?.username ||
-        localProfile.displayName ||
-        DEFAULT_LOCAL_DISPLAY_NAME,
-      email: assignedUser?.email || localProfile.email || "",
-      userId:
-        assignedUser?.userId ||
-        assignedUser?.presenceKey ||
-        localProfile.userId ||
-        `guest-${presenceKey.slice(-6)}`,
-    };
-    const changed =
-      nextProfile.displayName !== localProfile.displayName ||
-      nextProfile.email !== localProfile.email ||
-      nextProfile.userId !== localProfile.userId;
-
-    persistUserProfile(nextProfile);
-    window.localStorage.setItem("drawmatrix_profile_sync_key", presenceKey);
-
-    return { changed, profile: nextProfile };
-  } catch {
-    return { changed: false, profile: localProfile };
-  }
 };
 
 export const useRequireAuth = () => {

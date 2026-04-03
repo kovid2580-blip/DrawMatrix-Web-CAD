@@ -1,39 +1,18 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 
-import { ensureLocalAccessProfile, syncAssignedIdentity } from "@/lib/auth";
+import { ensureLocalAccessProfile } from "@/lib/auth";
 
 export const NextAuthProvider = ({
   children,
 }: {
   children: React.ReactNode;
 }) => {
-  const [profileVersion, setProfileVersion] = useState(0);
-
   useEffect(() => {
-    let isCancelled = false;
-
-    const hydrateAssignedIdentity = async () => {
-      ensureLocalAccessProfile();
-      const result = await syncAssignedIdentity();
-
-      if (!isCancelled && result.changed) {
-        setProfileVersion((value) => value + 1);
-      }
-    };
-
-    void hydrateAssignedIdentity();
-
-    return () => {
-      isCancelled = true;
-    };
+    ensureLocalAccessProfile();
   }, []);
 
-  return (
-    <SessionProvider>
-      <React.Fragment key={profileVersion}>{children}</React.Fragment>
-    </SessionProvider>
-  );
+  return <SessionProvider>{children}</SessionProvider>;
 };
