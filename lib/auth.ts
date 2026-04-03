@@ -72,6 +72,19 @@ const persistUserProfile = ({
   window.localStorage.setItem("cad_user_id", userId);
 };
 
+export const updateLocalDisplayName = (displayName: string) => {
+  if (typeof window === "undefined") return;
+
+  const nextName = displayName.trim() || DEFAULT_LOCAL_DISPLAY_NAME;
+  const existing = getCurrentUserProfile();
+
+  persistUserProfile({
+    displayName: nextName,
+    email: existing.email || "",
+    userId: existing.userId || "guest",
+  });
+};
+
 export const ensureLocalAccessProfile = () => {
   if (typeof window === "undefined") {
     return {

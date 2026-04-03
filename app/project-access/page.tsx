@@ -3,15 +3,16 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Hash, Key, Lock, Shield } from "lucide-react";
+import { ArrowRight, Hash, Key, Lock, Shield, User } from "lucide-react";
 
 import ParticleBackground from "@/components/particle-background";
-import { getCurrentUserProfile } from "@/lib/auth";
+import { getCurrentUserProfile, updateLocalDisplayName } from "@/lib/auth";
 
 const ProjectAccessPage = () => {
   const router = useRouter();
   const profile = getCurrentUserProfile();
   const [formData, setFormData] = useState({
+    displayName: profile.displayName || "",
     projectId: "",
     password: "",
   });
@@ -19,6 +20,9 @@ const ProjectAccessPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    updateLocalDisplayName(formData.displayName);
+
     // Permanent ID validation (Multiple Allowed)
     const isValid =
       (formData.projectId === "1234567890" && formData.password === "test1") ||
@@ -59,14 +63,27 @@ const ProjectAccessPage = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80 ml-1">
-                  User Name
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/80 ml-1">
+                User Name
+              </label>
+              <div className="relative group">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-cyan-400 transition-colors">
+                  <User size={18} />
                 </div>
-                <div className="ml-1 text-base font-bold text-white">
-                  {profile.displayName || "Kovid"}
-                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter your name"
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white/5 border border-white/10 focus:border-cyan-400/50 focus:ring-4 focus:ring-cyan-400/10 outline-none transition-all text-sm font-semibold placeholder:text-white/20"
+                  value={formData.displayName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, displayName: e.target.value })
+                  }
+                />
               </div>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 ml-1">
                 Project ID
               </label>
