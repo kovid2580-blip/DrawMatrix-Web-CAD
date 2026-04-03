@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { clearAuthStorage, getCurrentUserProfile } from "@/lib/auth";
+import { buildBackendUrl } from "@/lib/api-base";
 import {
   getLocalProjects,
   mergeProjectLists,
@@ -33,7 +34,7 @@ const Dashboard = () => {
   const profile = getCurrentUserProfile();
   const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [presenceData, setPresenceData] = useState<
-    Record<string, Record<string, UserPresence>>
+    Partial<Record<string, Record<string, UserPresence>>>
   >({});
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +51,11 @@ const Dashboard = () => {
       }
 
       try {
-        const res = await fetch(`/api/projects?ownerEmail=${profile.email}`);
+        const res = await fetch(
+          buildBackendUrl(
+            `/api/projects?ownerEmail=${encodeURIComponent(profile.email)}`
+          )
+        );
         if (res.ok) {
           const payload = await res.json();
           const cloudProjects = normalizeProjectListPayload(payload);
@@ -69,12 +74,19 @@ const Dashboard = () => {
 
     const fetchPresence = async () => {
       try {
-        const res = await fetch(`/api/presence`);
+        const res = await fetch(buildBackendUrl("/api/presence"));
         if (res.ok) {
-          setPresenceData(await res.json());
+          const payload = await res.json();
+          setPresenceData(
+            payload && typeof payload === "object" ? payload : {}
+          );
+          return;
         }
+
+        setPresenceData({});
       } catch (err) {
         console.error("Failed to fetch presence:", err);
+        setPresenceData({});
       }
     };
 
@@ -181,7 +193,7 @@ const Dashboard = () => {
                 [p.projectId, p.id].find(
                   (value): value is string => typeof value === "string"
                 ) || "";
-              const projectPresence = presenceData[projectId];
+              const projectPresence = presenceData[projectId] ?? {};
               const members = Object.values(projectPresence);
 
               return (

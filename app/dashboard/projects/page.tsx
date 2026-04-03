@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { ArrowLeft, Clock, FileText, Loader2, Save } from "lucide-react";
 
+import { buildBackendUrl } from "@/lib/api-base";
+import { getCurrentUserProfile } from "@/lib/auth";
 import {
   deleteLocalProject,
   getLocalProjects,
@@ -16,25 +17,27 @@ import {
 
 const ProjectsPage = () => {
   const router = useRouter();
-  const { data: session } = useSession();
   const [projects, setProjects] = useState<StoredProject[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProjects = async () => {
+      const profile = getCurrentUserProfile();
       const loadLocalProjects = () => {
         setProjects(getLocalProjects());
         setLoading(false);
       };
 
-      if (!session?.user?.email) {
+      if (!profile.email) {
         loadLocalProjects();
         return;
       }
 
       try {
         const res = await fetch(
-          `/api/projects?ownerEmail=${session.user.email}`
+          buildBackendUrl(
+            `/api/projects?ownerEmail=${encodeURIComponent(profile.email)}`
+          )
         );
         if (res.ok) {
           const payload = await res.json();
@@ -50,8 +53,8 @@ const ProjectsPage = () => {
       loadLocalProjects();
     };
 
-    fetchProjects();
-  }, [session]);
+    void fetchProjects();
+  }, []);
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
@@ -81,12 +84,13 @@ const ProjectsPage = () => {
     deleteLocalProject(projectId);
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
 
-    if (!session?.user?.email) {
+    const profile = getCurrentUserProfile();
+    if (!profile.email) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(buildBackendUrl(`/api/projects/${projectId}`), {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -111,12 +115,13 @@ const ProjectsPage = () => {
       prev.map((p) => (p.id === projectId ? { ...p, name: newName } : p))
     );
 
-    if (!session?.user?.email) {
+    const profile = getCurrentUserProfile();
+    if (!profile.email) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, {
+      const res = await fetch(buildBackendUrl(`/api/projects/${projectId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName }),
