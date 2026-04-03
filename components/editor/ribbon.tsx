@@ -655,7 +655,8 @@ const Ribbon = ({
                   label={inCall ? "Leave Meet" : "Join Meet"}
                   onClick={() => {
                     if (inCall) leaveCall();
-                    else if (projectId) joinCall(projectId);
+                    else if (projectId)
+                      joinCall(projectId, { initiator: true });
                     else window.alert("Select a project first!");
                   }}
                   active={inCall}

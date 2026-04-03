@@ -6,8 +6,9 @@ interface CallContextType {
   inCall: boolean;
   channelName: string;
   isMinimized: boolean;
+  isInitiator: boolean;
   error: string | null;
-  joinCall: (channel: string) => void;
+  joinCall: (channel: string, options?: { initiator?: boolean }) => void;
   leaveCall: () => void;
   toggleMinimize: () => void;
   setError: (err: string | null) => void;
@@ -19,19 +20,22 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
   const [inCall, setInCall] = useState(false);
   const [channelName, setChannelName] = useState("");
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isInitiator, setIsInitiator] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const joinCall = (channel: string) => {
+  const joinCall = (channel: string, options?: { initiator?: boolean }) => {
     setError(null);
     setChannelName(channel);
     setInCall(true);
     setIsMinimized(false);
+    setIsInitiator(Boolean(options?.initiator));
   };
 
   const leaveCall = () => {
     setInCall(false);
     setChannelName("");
     setIsMinimized(false);
+    setIsInitiator(false);
     setError(null);
   };
 
@@ -45,6 +49,7 @@ export const CallProvider = ({ children }: { children: ReactNode }) => {
         inCall,
         channelName,
         isMinimized,
+        isInitiator,
         error,
         joinCall,
         leaveCall,

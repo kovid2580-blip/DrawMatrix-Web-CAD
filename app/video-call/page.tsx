@@ -3,15 +3,29 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Copy, Loader2, Users, Video } from "lucide-react";
+import dynamic from "next/dynamic";
 
-import ZegoMeetingRoom from "@/components/video-call/ZegoMeetingRoom";
 import { getCurrentUserProfile } from "@/lib/auth";
 import { useCall } from "@/providers/CallContext";
+
+const ZegoMeetingRoom = dynamic(
+  () => import("@/components/video-call/ZegoMeetingRoom"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[75vh] items-center justify-center rounded-[2rem] bg-slate-950 text-slate-300">
+        <Loader2 size={24} className="mr-3 animate-spin" />
+        Loading meeting room...
+      </div>
+    ),
+  }
+);
 
 const VideoCallPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { joinCall, leaveCall, inCall, channelName, error } = useCall();
+  const { joinCall, leaveCall, inCall, channelName, isInitiator, error } =
+    useCall();
   const profile = useMemo(() => getCurrentUserProfile(), []);
 
   const roomIdFromLink = searchParams.get("roomID") || "";
@@ -28,7 +42,7 @@ const VideoCallPage = () => {
 
   useEffect(() => {
     if (roomIdFromLink && (!inCall || channelName !== roomIdFromLink)) {
-      joinCall(roomIdFromLink);
+      joinCall(roomIdFromLink, { initiator: false });
     }
   }, [channelName, inCall, joinCall, roomIdFromLink]);
 
@@ -38,7 +52,7 @@ const VideoCallPage = () => {
 
     try {
       setNewMeetingId(id);
-      joinCall(id);
+      joinCall(id, { initiator: true });
     } finally {
       setCreating(false);
     }
@@ -49,7 +63,7 @@ const VideoCallPage = () => {
     const trimmed = meetingId.trim();
     if (!trimmed) return;
 
-    joinCall(trimmed);
+    joinCall(trimmed, { initiator: false });
   };
 
   const handleCopy = () => {
@@ -81,10 +95,25 @@ const VideoCallPage = () => {
             </div>
           </div>
         </div>
+        <div className="mx-auto mb-4 flex max-w-7xl items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
+          <div>
+            {isInitiator
+              ? "Host controls are enabled. Use the participant list to remove people, or end the whole call below."
+              : "You joined as a participant."}
+          </div>
+          <button
+            onClick={leaveCall}
+            className="rounded-lg border border-rose-500/30 bg-rose-500/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-rose-200 transition hover:bg-rose-500/25"
+          >
+            {isInitiator ? "End For All" : "Leave Call"}
+          </button>
+        </div>
         <ZegoMeetingRoom
           roomId={channelName}
           displayName={profile.displayName || "Guest"}
+          isInitiator={isInitiator}
           onLeaveRoom={leaveCall}
+          onStatusChange={() => {}}
         />
       </div>
     );
