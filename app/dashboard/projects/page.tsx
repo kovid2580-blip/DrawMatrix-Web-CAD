@@ -1,19 +1,22 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Clock, FileText, Loader2, Save } from "lucide-react";
+
 import {
   deleteLocalProject,
   getLocalProjects,
   normalizeProjectListPayload,
   renameLocalProject,
+  StoredProject,
 } from "@/lib/project-storage";
 
-export default function ProjectsPage() {
+const ProjectsPage = () => {
   const router = useRouter();
   const { data: session } = useSession();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<StoredProject[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,17 +33,21 @@ export default function ProjectsPage() {
 
       try {
         const res = await fetch(
-          `/api/projects?ownerEmail=${session?.user?.email}`
+          `/api/projects?ownerEmail=${session.user.email}`
         );
         if (res.ok) {
           const payload = await res.json();
           const cloudProjects = normalizeProjectListPayload(payload);
-          if (cloudProjects && cloudProjects.length > 0) {
-            const mapped = cloudProjects.map((p: any) => ({
-              id: p.projectId || p.id,
-              name: p.name,
-              content: p.content || "",
-              lastModified: p.lastModified || p.updatedAt || p.createdAt,
+          if (cloudProjects.length > 0) {
+            const mapped: StoredProject[] = cloudProjects.map((project) => ({
+              id: project.projectId || project.id || crypto.randomUUID(),
+              name: project.name,
+              content: project.content || "",
+              lastModified:
+                project.lastModified ||
+                project.updatedAt ||
+                project.createdAt ||
+                new Date().toISOString(),
             }));
             setProjects(mapped);
             setLoading(false);
@@ -218,4 +225,6 @@ export default function ProjectsPage() {
       </div>
     </div>
   );
-}
+};
+
+export default ProjectsPage;

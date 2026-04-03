@@ -1,19 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Calendar,
   ChevronDown,
   MessageSquare,
   Send,
-  User as UserIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
-import { useThreeStore } from "@/store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,154 +21,192 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { socket } from "@/lib/socket";
+import { UserPresence, useThreeStore } from "@/store";
 
 const ROOM_ID = "1234567890";
 
-export default function SchedulesPage() {
+type MemberRecord = {
+  _id: string;
+  username: string;
+  email: string;
+};
+
+type ScheduleItem = {
+  _id: string;
+  title: string;
+  date: string;
+  time: string;
+  type: string;
+};
+
+type FeedMessage = {
+  id: string;
+  user: string;
+  text: string;
+  time: string;
+};
+
+type PresencePayload = {
+  projectId: string;
+  userId: string;
+  presence: UserPresence;
+};
+
+const FALLBACK_MESSAGE: FeedMessage = {
+  id: "1",
+  user: "System",
+  text: "Welcome to the project feed!",
+  time: "09:00 AM",
+};
+
+const SchedulesPage = () => {
   const router = useRouter();
   const { data: session } = useSession();
   const { presences, updatePresence, removePresence } = useThreeStore();
-  const [allUsers, setAllUsers] = useState<{ _id: string; username: string; email: string }[]>([]);
-  
-  // Use environment variable for API base in production
-  const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
-  
-  const [schedules, setSchedules] = useState<
-    { _id: string; title: string; date: string; time: string; type: string }[]
-  >([]);
-  const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "error">("connecting");
-  
-  const [messages, setMessages] = useState<
-    { id: string; user: string; text: string; time: string }[]
-  >([]);
+  const [allUsers, setAllUsers] = useState<MemberRecord[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [messages, setMessages] = useState<FeedMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [newType, setNewType] = useState("Meeting");
+  const isInitialLoad = useRef(true);
 
-  const isInitialLoad = React.useRef(true);
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
 
-  // Fetch all registered users
-  const fetchUsers = useCallback(() => {
-    setConnectionStatus("connecting");
-    fetch(`${API_BASE_URL}/get-users`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Server response not ok");
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-            setAllUsers(data);
-            setConnectionStatus("connected");
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch users:", err);
-        setConnectionStatus("error");
-      });
-  }, [API_BASE_URL]);
+  const fetchUsers = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/get-users`);
+      if (!response.ok) {
+        throw new Error("Server response not ok");
+      }
+
+      const data: unknown = await response.json();
+      if (Array.isArray(data)) {
+        setAllUsers(data as MemberRecord[]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      setAllUsers([]);
+    }
+  }, [apiBaseUrl]);
 
   useEffect(() => {
-    fetchUsers();
+    void fetchUsers();
   }, [fetchUsers]);
 
-  // Socket setup for presence
   useEffect(() => {
     if (!session?.user) return;
 
     if (!socket.connected) {
-        socket.connect();
+      socket.connect();
     }
-    
+
     socket.emit("join_project", ROOM_ID);
 
-    const userPresence = {
-        id: session.user.email || Math.random().toString(),
-        name: session.user.name || "Anonymous",
-        color: "#" + Math.floor(Math.random()*16777215).toString(16),
-        cursor: null,
-        cameraPosition: [0, 5, 10]
+    const userPresence: UserPresence = {
+      id: session.user.email || Math.random().toString(),
+      name: session.user.name || "Anonymous",
+      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+      cursor: null,
+      cameraPosition: [0, 5, 10],
     };
 
     socket.emit("presence-update", {
-        projectId: ROOM_ID,
-        userId: userPresence.id,
-        presence: userPresence
+      projectId: ROOM_ID,
+      userId: userPresence.id,
+      presence: userPresence,
     });
 
-    socket.on("presence-update", (data) => {
-        updatePresence(data.userId, data.presence);
-    });
+    const handlePresenceUpdate = ({ userId, presence }: PresencePayload) => {
+      updatePresence(userId, presence);
+    };
 
-    socket.on("presence-disconnect", (userId) => {
-        removePresence(userId);
-    });
+    const handlePresenceDisconnect = (userId: string) => {
+      removePresence(userId);
+    };
 
-    socket.on("room_presence_list", (presenceMap: any) => {
-        Object.entries(presenceMap).forEach(([sid, data]: [string, any]) => {
-            updatePresence(data.userId, data);
-        });
-    });
+    const handlePresenceList = (presenceMap: Record<string, UserPresence>) => {
+      Object.values(presenceMap).forEach((presence) => {
+        updatePresence(presence.id, presence);
+      });
+    };
+
+    socket.on("presence-update", handlePresenceUpdate);
+    socket.on("presence-disconnect", handlePresenceDisconnect);
+    socket.on("room_presence_list", handlePresenceList);
 
     return () => {
-        // We might want to keep the socket connected if navigating within dashboard
-        // but for now let's keep it simple
+      socket.off("presence-update", handlePresenceUpdate);
+      socket.off("presence-disconnect", handlePresenceDisconnect);
+      socket.off("room_presence_list", handlePresenceList);
     };
-  }, [session, updatePresence, removePresence]);
+  }, [removePresence, session, updatePresence]);
 
-  // Load messages and schedules from backend
   useEffect(() => {
-    // Fetch messages from backend
-    fetch(`${API_BASE_URL}/api/messages?projectId=${ROOM_ID}`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-            setMessages(data);
+    const loadMessagesAndSchedules = async () => {
+      try {
+        const messagesResponse = await fetch(
+          `${apiBaseUrl}/api/messages?projectId=${ROOM_ID}`
+        );
+        const messagesData: unknown = await messagesResponse.json();
+        if (Array.isArray(messagesData) && messagesData.length > 0) {
+          setMessages(messagesData as FeedMessage[]);
         } else {
-            setMessages([{ id: "1", user: "System", text: "Welcome to the project feed!", time: "09:00 AM" }]);
+          setMessages([FALLBACK_MESSAGE]);
         }
-      })
-      .catch(err => console.error("Failed to fetch messages:", err));
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        setMessages([FALLBACK_MESSAGE]);
+      }
 
-    // Fetch schedules from backend
-    fetch(`${API_BASE_URL}/api/schedules?projectId=${ROOM_ID}`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setSchedules(data);
-      })
-      .catch(err => console.error("Failed to fetch schedules:", err));
-    
-    isInitialLoad.current = false;
+      try {
+        const schedulesResponse = await fetch(
+          `${apiBaseUrl}/api/schedules?projectId=${ROOM_ID}`
+        );
+        const schedulesData: unknown = await schedulesResponse.json();
+        if (Array.isArray(schedulesData)) {
+          setSchedules(schedulesData as ScheduleItem[]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch schedules:", error);
+      }
 
-    // Listen for new messages from others
-    socket.on('receive_message', (msg: any) => {
-        setMessages(prev => [...prev, msg]);
-    });
+      isInitialLoad.current = false;
+    };
+
+    const handleReceiveMessage = (message: FeedMessage) => {
+      setMessages((prev) => [...prev, message]);
+    };
+
+    void loadMessagesAndSchedules();
+    socket.on("receive_message", handleReceiveMessage);
 
     return () => {
-        socket.off('receive_message');
+      socket.off("receive_message", handleReceiveMessage);
     };
-  }, [API_BASE_URL]);
-
-  // Remove the old localStorage auto-save as we now use the DB
+  }, [apiBaseUrl]);
 
   const cleanupSchedules = useCallback(() => {
     const now = new Date();
     setSchedules((prev) => {
-      const filtered = prev.filter((s) => {
-        if (!s.date || !s.time) return true;
-        const scheduleTime = new Date(`${s.date}T${s.time}`);
-        if (isNaN(scheduleTime.getTime())) return true;
+      const filtered = prev.filter((schedule) => {
+        if (!schedule.date || !schedule.time) return true;
+        const scheduleTime = new Date(`${schedule.date}T${schedule.time}`);
+        if (Number.isNaN(scheduleTime.getTime())) return true;
         return scheduleTime > now;
       });
+
       return filtered.length === prev.length ? prev : filtered;
     });
   }, []);
 
   useEffect(() => {
     if (isInitialLoad.current) return;
+
     cleanupSchedules();
     const interval = setInterval(cleanupSchedules, 60000);
     return () => clearInterval(interval);
@@ -178,7 +214,8 @@ export default function SchedulesPage() {
 
   const handleSendMessage = () => {
     if (!newMessage.trim() || !session?.user) return;
-    const msg = {
+
+    const message: Omit<FeedMessage, "id"> & { projectId: string } = {
       projectId: ROOM_ID,
       user: session.user.name || "Anonymous",
       text: newMessage,
@@ -187,104 +224,103 @@ export default function SchedulesPage() {
         minute: "2-digit",
       }),
     };
-    
-    // Send to server via socket (server will save to DB and broadcast)
-    socket.emit('send_message', msg);
-    
-    // Update local state immediately for the sender
-    setMessages([...messages, { ...msg, id: Date.now().toString() }]);
+
+    socket.emit("send_message", message);
+    setMessages((prev) => [...prev, { ...message, id: Date.now().toString() }]);
     setNewMessage("");
   };
 
-  const handleAddSchedule = () => {
+  const handleAddSchedule = async () => {
     if (!newTitle || !newDate || !newTime) return;
+
     const scheduleData = {
       title: newTitle,
       date: newDate,
       time: newTime,
       type: newType,
       projectId: ROOM_ID,
-      createdBy: session?.user?.email
+      createdBy: session?.user?.email,
     };
 
-    fetch(`${API_BASE_URL}/api/schedules`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scheduleData)
-    })
-      .then(res => res.json())
-      .then(newSchedule => {
-        setSchedules([...schedules, newSchedule]);
-        setNewTitle("");
-        setNewDate("");
-        setNewTime("");
-        setNewType("Meeting");
-        setShowForm(false);
-      })
-      .catch(err => console.error("Failed to add schedule:", err));
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/schedules`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(scheduleData),
+      });
+      const newSchedule: ScheduleItem = await response.json();
+      setSchedules((prev) => [...prev, newSchedule]);
+      setNewTitle("");
+      setNewDate("");
+      setNewTime("");
+      setNewType("Meeting");
+      setShowForm(false);
+    } catch (error) {
+      console.error("Failed to add schedule:", error);
+    }
   };
 
-  const handleDeleteSchedule = (id: string) => {
-    fetch(`${API_BASE_URL}/api/schedules/${id}`, { method: 'DELETE' })
-      .then(() => {
-        setSchedules(schedules.filter((s) => s._id !== id));
-      })
-      .catch(err => console.error("Failed to delete schedule:", err));
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      await fetch(`${apiBaseUrl}/api/schedules/${id}`, { method: "DELETE" });
+      setSchedules((prev) => prev.filter((schedule) => schedule._id !== id));
+    } catch (error) {
+      console.error("Failed to delete schedule:", error);
+    }
   };
 
-  // Filter offline users (all users minus those currently in presences)
   const offlineUsers = allUsers.filter(
-    (u) => !Object.values(presences).some((p) => p.id === u.email)
+    (user) =>
+      !Object.values(presences).some((presence) => presence.id === user.email)
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-12">
+    <div className="min-h-screen bg-slate-950 p-8 text-white">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-12 flex items-center justify-between">
           <button
             onClick={() => router.push("/dashboard")}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-slate-400 transition-colors hover:text-white"
           >
             <ArrowLeft size={20} /> Back to Dashboard
           </button>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/20"
+            className="rounded-xl bg-blue-600 px-6 py-2.5 font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-500"
           >
             + New Schedule
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* List Section */}
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold">
               <Calendar className="text-green-400" /> Upcoming
             </h2>
             {schedules.length === 0 ? (
-              <div className="p-8 border border-dashed border-slate-800 rounded-3xl bg-slate-900/50 text-slate-500 text-center">
+              <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/50 p-8 text-center text-slate-500">
                 No active schedules found.
               </div>
             ) : (
-              schedules.map((s) => (
+              schedules.map((schedule) => (
                 <div
-                  key={s._id}
-                  className="p-6 bg-slate-900 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-blue-500/50 transition-colors"
+                  key={schedule._id}
+                  className="group flex items-center justify-between rounded-2xl border border-white/10 bg-slate-900 p-6 transition-colors hover:border-blue-500/50"
                 >
                   <div>
-                    <div className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">
-                      {s.type}
+                    <div className="mb-1 text-xs font-bold uppercase tracking-wider text-blue-400">
+                      {schedule.type}
                     </div>
                     <div className="text-lg font-bold text-white">
-                      {s.title}
+                      {schedule.title}
                     </div>
-                    <div className="text-sm text-slate-400 mt-1">
-                      {s.date} at {s.time}
+                    <div className="mt-1 text-sm text-slate-400">
+                      {schedule.date} at {schedule.time}
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteSchedule(s._id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/10 rounded-lg text-red-400 transition-all"
+                    onClick={() => handleDeleteSchedule(schedule._id)}
+                    className="rounded-lg p-2 text-red-400 opacity-0 transition-all hover:bg-red-500/10 group-hover:opacity-100"
                   >
                     Delete
                   </button>
@@ -293,69 +329,69 @@ export default function SchedulesPage() {
             )}
           </div>
 
-          {/* Project Feed Section */}
-          <div className="flex flex-col h-[600px] bg-slate-900/50 border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-white/10 bg-white/5 flex items-center justify-between">
-              <h3 className="text-xl font-bold flex items-center gap-2">
+          <div className="flex h-[600px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-900/50 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 bg-white/5 p-6">
+              <h3 className="flex items-center gap-2 text-xl font-bold">
                 <MessageSquare size={20} className="text-blue-400" /> Project
                 Live Feed
               </h3>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 group">
+                  <button className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 transition-all active:scale-95 hover:bg-white/10">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold group-hover:text-white transition-colors">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-colors group-hover:text-white">
                         Live Online
                       </span>
                       <ChevronDown
                         size={12}
-                        className="text-slate-500 group-hover:text-white transition-colors"
+                        className="text-slate-500 transition-colors group-hover:text-white"
                       />
                     </div>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-64 bg-slate-900/95 backdrop-blur-xl border-white/10 p-2 shadow-2xl"
+                  className="w-64 border-white/10 bg-slate-900/95 p-2 shadow-2xl backdrop-blur-xl"
                 >
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-500 px-2 py-1.5">
+                  <DropdownMenuLabel className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-slate-500">
                     Active Now (Room {ROOM_ID})
                   </DropdownMenuLabel>
                   {Object.values(presences).length > 0 ? (
                     Object.values(presences).map((user) => (
                       <DropdownMenuItem
                         key={user.id}
-                        className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 cursor-default focus:bg-white/5"
+                        className="flex cursor-default items-center justify-between rounded-lg p-2 hover:bg-white/5 focus:bg-white/5"
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black"
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-black"
                             style={{ backgroundColor: user.color || "#3b82f6" }}
                           >
                             {user.name ? user.name[0] : "?"}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-white">
-                              {user.name} {user.id === session?.user?.email ? "(You)" : ""}
+                              {user.name}{" "}
+                              {user.id === session?.user?.email ? "(You)" : ""}
                             </span>
-                            <span className="text-[9px] text-green-500 uppercase tracking-tighter">
+                            <span className="text-[9px] uppercase tracking-tighter text-green-500">
                               Online
                             </span>
                           </div>
                         </div>
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
                       </DropdownMenuItem>
                     ))
                   ) : (
-                    <div className="px-2 py-3 text-xs text-slate-600 italic text-center">
+                    <div className="px-2 py-3 text-center text-xs italic text-slate-600">
                       Connecting to signaling server...
                     </div>
                   )}
 
-                  <DropdownMenuSeparator className="bg-white/5 my-2" />
+                  <DropdownMenuSeparator className="my-2 bg-white/5" />
 
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-500 px-2 py-1.5">
+                  <DropdownMenuLabel className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-slate-500">
                     Offline Members
                   </DropdownMenuLabel>
                   {allUsers.length > 0 ? (
@@ -363,31 +399,31 @@ export default function SchedulesPage() {
                       offlineUsers.map((user) => (
                         <DropdownMenuItem
                           key={user._id}
-                          className="flex items-center justify-between p-2 rounded-lg opacity-50 grayscale"
+                          className="flex items-center justify-between rounded-lg p-2 opacity-50 grayscale"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-400">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-[10px] font-black text-slate-400">
                               {user.username ? user.username[0] : "U"}
                             </div>
                             <div className="flex flex-col">
                               <span className="text-xs font-bold text-slate-400">
                                 {user.username || user.email}
                               </span>
-                              <span className="text-[9px] text-slate-600 uppercase tracking-tighter">
+                              <span className="text-[9px] uppercase tracking-tighter text-slate-600">
                                 Offline
                               </span>
                             </div>
                           </div>
-                          <div className="w-2 h-2 rounded-full bg-slate-700" />
+                          <div className="h-2 w-2 rounded-full bg-slate-700" />
                         </DropdownMenuItem>
                       ))
                     ) : (
-                      <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
+                      <div className="px-2 py-3 text-center text-[10px] italic text-slate-600">
                         All members are online
                       </div>
                     )
                   ) : (
-                    <div className="px-2 py-3 text-[10px] text-slate-600 italic text-center">
+                    <div className="px-2 py-3 text-center text-[10px] italic text-slate-600">
                       No members synced in database
                     </div>
                   )}
@@ -395,38 +431,42 @@ export default function SchedulesPage() {
               </DropdownMenu>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-sm custom-scrollbar">
+            <div className="custom-scrollbar flex-1 space-y-4 overflow-y-auto p-4 font-mono text-sm">
               <table className="w-full border-collapse">
-                <thead className="text-[10px] text-slate-500 uppercase tracking-tighter border-b border-white/5 sticky top-0 bg-slate-900/90 backdrop-blur-sm z-10">
+                <thead className="sticky top-0 z-10 border-b border-white/5 bg-slate-900/90 text-[10px] uppercase tracking-tighter text-slate-500 backdrop-blur-sm">
                   <tr>
-                    <th className="px-4 py-2 text-left font-bold w-24">User</th>
+                    <th className="w-24 px-4 py-2 text-left font-bold">User</th>
                     <th className="px-4 py-2 text-left font-bold">Message</th>
-                    <th className="px-4 py-2 text-right font-bold w-24">
+                    <th className="w-24 px-4 py-2 text-right font-bold">
                       Time
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   <AnimatePresence>
-                    {messages.map((m) => (
+                    {messages.map((message) => (
                       <motion.tr
-                        key={m.id}
+                        key={message.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="group hover:bg-white/[0.02] transition-colors"
+                        className="group transition-colors hover:bg-white/[0.02]"
                       >
                         <td className="px-4 py-3 align-top">
                           <span
-                            className={`font-bold ${m.user === session?.user?.name ? "text-blue-400" : "text-slate-300"}`}
+                            className={`font-bold ${
+                              message.user === session?.user?.name
+                                ? "text-blue-400"
+                                : "text-slate-300"
+                            }`}
                           >
-                            {m.user}
+                            {message.user}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-200 break-words max-w-[150px]">
-                          {m.text}
+                        <td className="max-w-[150px] break-words px-4 py-3 text-slate-200">
+                          {message.text}
                         </td>
-                        <td className="px-4 py-3 text-right text-slate-500 text-[10px] tabular-nums align-top">
-                          {m.time}
+                        <td className="px-4 py-3 text-right text-[10px] tabular-nums text-slate-500 align-top">
+                          {message.time}
                         </td>
                       </motion.tr>
                     ))}
@@ -435,19 +475,21 @@ export default function SchedulesPage() {
               </table>
             </div>
 
-            <div className="p-4 bg-white/5 border-t border-white/10">
-              <div className="relative group">
+            <div className="border-t border-white/10 bg-white/5 p-4">
+              <div className="group relative">
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                  onChange={(event) => setNewMessage(event.target.value)}
+                  onKeyDown={(event) =>
+                    event.key === "Enter" && handleSendMessage()
+                  }
                   placeholder="Type a message to project group..."
-                  className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 pr-14 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-600 group-hover:border-white/20"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 p-4 pr-14 text-sm outline-none transition-all placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 group-hover:border-white/20"
                 />
                 <button
                   onClick={handleSendMessage}
-                  className="absolute right-2 top-2 p-2 bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                  className="absolute right-2 top-2 rounded-xl bg-blue-600 p-2 shadow-lg shadow-blue-500/20 transition-all active:scale-95 hover:bg-blue-500"
                 >
                   <Send size={18} />
                 </button>
@@ -457,77 +499,76 @@ export default function SchedulesPage() {
         </div>
       </div>
 
-      {/* Basic Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-slate-900 border border-white/10 p-8 rounded-3xl max-w-md w-full shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-8 shadow-2xl"
           >
-            <h2 className="text-2xl font-bold mb-6">Create Schedule</h2>
+            <h2 className="mb-6 text-2xl font-bold">Create Schedule</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
                   Meeting Title
                 </label>
                 <input
                   type="text"
                   value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
+                  onChange={(event) => setNewTitle(event.target.value)}
                   placeholder="e.g. Design Review"
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full rounded-xl border border-white/10 bg-slate-800 p-4 text-white outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
                     Date
                   </label>
                   <input
                     type="date"
                     value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    onChange={(event) => setNewDate(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-slate-800 p-4 text-white outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                  <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
                     Time
                   </label>
                   <input
                     type="time"
                     value={newTime}
-                    onChange={(e) => setNewTime(e.target.value)}
-                    className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    onChange={(event) => setNewTime(event.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-slate-800 p-4 text-white outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
                   Meeting Type
                 </label>
                 <select
                   value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
+                  onChange={(event) => setNewType(event.target.value)}
+                  className="w-full appearance-none rounded-xl border border-white/10 bg-slate-800 p-4 text-white outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="Meeting">🏠 General Meeting</option>
-                  <option value="Review">🎨 Design Review</option>
-                  <option value="Sync">🔄 Project Sync</option>
-                  <option value="Workshop">💡 Workshop</option>
+                  <option value="Meeting">General Meeting</option>
+                  <option value="Review">Design Review</option>
+                  <option value="Sync">Project Sync</option>
+                  <option value="Workshop">Workshop</option>
                 </select>
               </div>
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold transition-colors"
+                  className="flex-1 rounded-xl bg-slate-800 px-4 py-3 text-sm font-bold transition-colors hover:bg-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddSchedule}
-                  className="flex-1 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-sm font-bold transition-colors shadow-lg shadow-blue-500/20"
+                  className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500"
                 >
                   Save
                 </button>
@@ -538,4 +579,6 @@ export default function SchedulesPage() {
       )}
     </div>
   );
-}
+};
+
+export default SchedulesPage;

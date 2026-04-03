@@ -7,7 +7,10 @@ import { useStreamVideoClient } from "@stream-io/video-react-sdk";
 
 import { useCall } from "@/providers/CallContext";
 
-export default function VideoCallPage() {
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+const VideoCallPage = () => {
   const router = useRouter();
   const client = useStreamVideoClient();
   const { joinCall, inCall, error } = useCall();
@@ -33,8 +36,6 @@ export default function VideoCallPage() {
 
     try {
       const call = client.call("default", id);
-      // Defensive internal check for common SDK issues
-      if (!call) throw new Error("Failed to initialize call object locally.");
 
       // Disable camera/mic before getOrCreate to prevent device enumeration crash
       await call.camera.disable();
@@ -42,16 +43,15 @@ export default function VideoCallPage() {
 
       await call.getOrCreate({
         ring: false,
-        data: { created_by_id: id },
       });
       console.log("[Stream] Call created/retrieved successfully:", id);
 
       setNewMeetingId(id);
       joinCall(id);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[Stream] Call creation error logic:", err);
       // Handle specific SDK error where internal state is missing
-      const msg = err?.message || "Failed to create meeting";
+      const msg = getErrorMessage(err, "Failed to create meeting");
       setCreateError(
         msg.includes("find")
           ? "Internal connection error. Please wait 2s and try again."
@@ -71,20 +71,19 @@ export default function VideoCallPage() {
     setCreateError(null);
     try {
       const call = client.call("default", trimmed);
-      
+
       // Fix: Disable camera/mic before getOrCreate to prevent device enumeration crash
       await call.camera.disable();
       await call.microphone.disable();
 
       await call.getOrCreate({
         ring: false,
-        data: { created_by_id: trimmed },
       });
       joinCall(trimmed);
       router.push("/editor");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[Stream] Join error:", err);
-      setCreateError(err?.message ?? "Could not join meeting");
+      setCreateError(getErrorMessage(err, "Could not join meeting"));
     }
   };
 
@@ -236,4 +235,6 @@ export default function VideoCallPage() {
       </div>
     </div>
   );
-}
+};
+
+export default VideoCallPage;

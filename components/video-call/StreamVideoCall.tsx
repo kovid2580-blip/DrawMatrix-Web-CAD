@@ -231,7 +231,7 @@ const ControlBar = ({
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Join my DrawMatrix meeting!\nID: ${roomName}\nLink: ${typeof window !== 'undefined' ? window.location.origin : ''}/video-call`)}`}
+                  href={`https://wa.me/?text=${encodeURIComponent(`Join my DrawMatrix meeting!\nID: ${roomName}\nLink: ${typeof window !== "undefined" ? window.location.origin : ""}/video-call`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] text-xs font-bold transition-all border border-[#25D366]/20"
@@ -239,7 +239,7 @@ const ControlBar = ({
                   WhatsApp
                 </a>
                 <a
-                  href={`mailto:?subject=DrawMatrix Meeting Invitation&body=${encodeURIComponent(`Join my architectural meeting on DrawMatrix!\n\nMeeting ID: ${roomName}\n\nJoin here: ${typeof window !== 'undefined' ? window.location.origin : ''}/video-call`)}`}
+                  href={`mailto:?subject=DrawMatrix Meeting Invitation&body=${encodeURIComponent(`Join my architectural meeting on DrawMatrix!\n\nMeeting ID: ${roomName}\n\nJoin here: ${typeof window !== "undefined" ? window.location.origin : ""}/video-call`)}`}
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-bold transition-all border border-cyan-500/20"
                 >
                   Email
@@ -249,9 +249,9 @@ const ControlBar = ({
                 onClick={() => {
                   if (navigator.share) {
                     navigator.share({
-                      title: 'DrawMatrix Meeting',
+                      title: "DrawMatrix Meeting",
                       text: `Join my meeting! ID: ${roomName}`,
-                      url: `${window.location.origin}/video-call`
+                      url: `${window.location.origin}/video-call`,
                     });
                   } else {
                     copyId();
@@ -262,7 +262,6 @@ const ControlBar = ({
                 Other Options (System Share)
               </button>
             </div>
-
           </div>
         </div>
       )}
@@ -532,7 +531,7 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
   useEffect(() => {
     if (!client) return;
 
-    // Deep Core Fix: Ensure client state is actually initialized 
+    // Deep Core Fix: Ensure client state is actually initialized
     // before attempting to create/access a call.
     if (!client.state) {
       console.warn("[Stream] Client state not yet available");
@@ -544,7 +543,7 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
 
     try {
       c = client.call("default", callId);
-      
+
       // Disable automatic device detection and ring behavior during setup
       // to prevent crashes on devices without media permissions
       c.getOrCreate({
@@ -575,10 +574,6 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
 
     const name =
       displayName.trim() || `User-${Math.random().toString(36).slice(-4)}`;
-    const userId =
-      typeof window !== "undefined"
-        ? localStorage.getItem("drawmatrix_user_id") ?? ""
-        : "";
     localStorage.setItem("drawmatrix_display_name", name);
 
     // Name management is already handled during the initial client creation in StreamClientProvider.

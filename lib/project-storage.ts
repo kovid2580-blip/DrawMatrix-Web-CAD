@@ -5,16 +5,28 @@ export interface StoredProject {
   lastModified: string;
 }
 
+export interface ProjectListItem {
+  id?: string;
+  projectId?: string;
+  name: string;
+  content?: string;
+  lastModified?: string;
+  updatedAt?: string;
+  createdAt?: string;
+}
+
 const STORAGE_KEY = "dm_projects";
 
-export const normalizeProjectListPayload = (payload: unknown): any[] => {
+export const normalizeProjectListPayload = (
+  payload: unknown
+): ProjectListItem[] => {
   if (Array.isArray(payload)) return payload;
   if (
     payload &&
     typeof payload === "object" &&
-    Array.isArray((payload as { projects?: unknown[] }).projects)
+    Array.isArray((payload as { projects?: ProjectListItem[] }).projects)
   ) {
-    return (payload as { projects: unknown[] }).projects;
+    return (payload as { projects: ProjectListItem[] }).projects;
   }
   return [];
 };

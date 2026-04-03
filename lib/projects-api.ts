@@ -73,7 +73,9 @@ export const deleteProjectRemote = async (projectId: string) => {
   });
 
   if (!response.ok && response.status !== 404) {
-    throw new Error(`Failed to delete project ${projectId}: ${response.status}`);
+    throw new Error(
+      `Failed to delete project ${projectId}: ${response.status}`
+    );
   }
 
   return true;

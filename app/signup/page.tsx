@@ -10,7 +10,7 @@ import ParticleBackground from "@/components/particle-background";
 
 const Signup = () => {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -39,27 +39,29 @@ const Signup = () => {
               Draw Matrix
             </span>
           </div>
-          
+
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-white tracking-tight">Joining Draw Matrix...</h2>
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              Joining Draw Matrix...
+            </h2>
             <p className="text-blue-100/70 text-sm">
-                Creating your secure workspace via Google.
+              Creating your secure workspace via Google.
             </p>
           </div>
         </div>
 
         <div className="flex flex-col items-center justify-center gap-6">
-            <div className="relative">
-                <div className="absolute inset-0 bg-blue-400 blur-2xl opacity-20 animate-pulse" />
-                <Loader2 className="w-10 h-10 text-cyan-400 animate-spin relative z-10" />
-            </div>
-            
-            <button 
-                onClick={() => signIn("google", { callbackUrl: "/project-access" })}
-                className="text-[10px] uppercase tracking-widest font-bold text-white/40 hover:text-white transition-colors"
-            >
-                Not redirecting? Click here
-            </button>
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-400 blur-2xl opacity-20 animate-pulse" />
+            <Loader2 className="w-10 h-10 text-cyan-400 animate-spin relative z-10" />
+          </div>
+
+          <button
+            onClick={() => signIn("google", { callbackUrl: "/project-access" })}
+            className="text-[10px] uppercase tracking-widest font-bold text-white/40 hover:text-white transition-colors"
+          >
+            Not redirecting? Click here
+          </button>
         </div>
       </motion.div>
     </div>

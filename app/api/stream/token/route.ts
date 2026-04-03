@@ -27,11 +27,13 @@ export async function POST(req: Request) {
 
   // Ensure user exists on Stream's servers before generating token
   try {
-    await client.upsertUsers([{
-      id: userId,
-      name: userId,
-      role: "user",
-    }]);
+    await client.upsertUsers([
+      {
+        id: userId,
+        name: userId,
+        role: "user",
+      },
+    ]);
     console.log(`[Stream API] User upserted/verified: ${userId}`);
   } catch (upsertErr) {
     console.error("[Stream API] User upsert error (non-fatal):", upsertErr);

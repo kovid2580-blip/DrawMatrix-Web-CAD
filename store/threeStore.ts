@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import * as THREE from "three";
 
 /**
  * STABILITY RULE: Strict 3-level hierarchy
@@ -38,6 +37,9 @@ export interface Layer {
   order: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ThreeObjectProperties = Record<string, any>;
+
 export interface ThreeObject {
   id: string; // globally unique UUID
   type: ThreeObjectType;
@@ -47,7 +49,7 @@ export interface ThreeObject {
     rotation: [number, number, number, number]; // Quaternion [x, y, z, w]
     scale: [number, number, number];
   };
-  properties: Record<string, any>;
+  properties: ThreeObjectProperties;
   color: string;
   lockedBy?: string | null;
   lastModifiedBy?: string;
@@ -103,6 +105,7 @@ interface ThreeStore {
   setLocalCursor: (cursor: [number, number, number]) => void;
   setCinematicMode: (enabled: boolean) => void;
   setProjectInfo: (id: string, name: string) => void;
+  setRole: (role: UserRole) => void;
   resetHistory: () => void;
 
   // Operation-based Actions (STABILITY RULE: sync these transactions)
@@ -322,7 +325,7 @@ export const useThreeStore = create<ThreeStore>((set, get) => ({
       if (!blockDef) return state;
       const instance: ThreeObject = {
         id: Math.random().toString(36).substr(2, 9),
-        type: "box" as any, // fallback type for the instance holder
+        type: "box",
         layerId: state.activeLayerId,
         transform: { position, rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
         properties: { blockRef: blockId },

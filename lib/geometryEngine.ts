@@ -48,7 +48,8 @@ export class GeometryEngine {
     return geometry;
   }
 
-  static loft(sections: [number, number, number][][]): THREE.BufferGeometry {
+  static loft(_sections: [number, number, number][][]): THREE.BufferGeometry {
+    void _sections;
     // Simplified loft implementation using BufferGeometry manually if needed
     // For demonstration, we'll return a basic placeholder or complex geometry
     const geometry = new THREE.BufferGeometry();

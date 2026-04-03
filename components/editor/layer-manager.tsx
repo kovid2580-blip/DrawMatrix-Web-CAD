@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Eye, EyeOff, Lock, Plus, Trash2, Unlock } from "lucide-react";
+import { Eye, EyeOff, Lock, Plus, Unlock } from "lucide-react";
 
 import { Layer, useThreeStore } from "@/store";
 

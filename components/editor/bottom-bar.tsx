@@ -4,6 +4,8 @@ import { Grid, Lock, Maximize, MousePointer2, Settings } from "lucide-react";
 
 import { useThreeStore } from "@/store";
 
+type CursorPosition = [number, number, number];
+
 export const CommandBar = () => {
   return (
     <div className="h-8 bg-[#2b2d30] border-t border-gray-600 flex items-center px-2 text-gray-300 text-xs font-mono">
@@ -18,7 +20,7 @@ export const CommandBar = () => {
 };
 
 export const StatusBar = () => {
-  const localCursor = useThreeStore((s: any) => s.localCursor);
+  const localCursor = useThreeStore((s) => s.localCursor as CursorPosition);
   const [x, y, z] = localCursor || [0, 0, 0];
 
   return (

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -10,22 +11,30 @@ import {
   Clock,
   FileText,
   FolderKanban,
-  Loader2,
   LogOut,
   Save,
   Video,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
+
 import {
   getLocalProjects,
   normalizeProjectListPayload,
+  ProjectListItem,
 } from "@/lib/project-storage";
+import { UserPresence } from "@/store";
 
-export default function Dashboard() {
+type RecentProject = ProjectListItem & {
+  id?: string;
+  projectId?: string;
+};
+
+const Dashboard = () => {
   const router = useRouter();
   const { data: session } = useSession();
-  const [recentProjects, setRecentProjects] = useState<any[]>([]);
-  const [presenceData, setPresenceData] = useState<Record<string, any>>({});
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+  const [presenceData, setPresenceData] = useState<
+    Record<string, Record<string, UserPresence>>
+  >({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,7 +51,7 @@ export default function Dashboard() {
 
       try {
         const res = await fetch(
-          `/api/projects?ownerEmail=${session?.user?.email}`
+          `/api/projects?ownerEmail=${session.user.email}`
         );
         if (res.ok) {
           const payload = await res.json();
@@ -167,7 +176,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {recentProjects.map((p) => {
               const projectId = p.projectId || p.id;
-              const projectPresence = presenceData[projectId] || {};
+              const projectPresence = projectId
+                ? presenceData[projectId] || {}
+                : {};
               const members = Object.values(projectPresence);
 
               return (
@@ -184,14 +195,14 @@ export default function Dashboard() {
 
                       {/* Active Members Avatars */}
                       <div className="flex -space-x-1.5 overflow-hidden">
-                        {members.map((m: any, i) => (
+                        {members.map((member, i) => (
                           <div
                             key={i}
-                            title={m.name}
+                            title={member.name}
                             className="w-5 h-5 rounded-full border border-slate-900 flex items-center justify-center text-[8px] font-bold text-white uppercase"
-                            style={{ backgroundColor: m.color }}
+                            style={{ backgroundColor: member.color }}
                           >
-                            {m.name.charAt(0)}
+                            {member.name.charAt(0)}
                           </div>
                         ))}
                       </div>
@@ -208,7 +219,7 @@ export default function Dashboard() {
                             p.createdAt ||
                             Date.now()
                         ).toLocaleDateString()}
-                        {members.length > 0 && (
+                        {!!members.length && (
                           <span className="text-cyan-500 ml-auto flex items-center gap-0.5 font-bold">
                             <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />
                             {members.length} Active
@@ -261,4 +272,6 @@ export default function Dashboard() {
       </div>
     </main>
   );
-}
+};
+
+export default Dashboard;

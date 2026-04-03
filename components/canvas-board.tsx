@@ -203,7 +203,7 @@ const CanvasBoard = () => {
       handleDrawing(e.clientX, e.clientY);
     };
 
-    const handleMouseUp = (e: PointerEvent) => {
+    const handleMouseUp = () => {
       handleStopDrawing();
     };
 

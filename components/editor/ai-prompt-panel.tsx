@@ -4,14 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Eye,
   Loader2,
-  Send,
   Sparkles,
-  Trash2,
   Wand2,
   X,
 } from "lucide-react";
@@ -20,9 +16,13 @@ import {
   generateFromExternalEngine,
   generateObjects,
 } from "@/lib/ai/cad-dispatcher";
-import { socket, USER_ID } from "@/lib/socket";
+import { parseDesignIntent } from "@/lib/ai/design-intent-parser";
 import { detectLayoutType, generateLayout } from "@/lib/ai/layout-generator";
+import { interpretPrompt } from "@/lib/ai/prompt-interpreter";
 import { validateAndCorrect } from "@/lib/ai/rule-engine";
+import { socket, USER_ID } from "@/lib/socket";
+import { useAIStore } from "@/store/ai-store";
+import { useThreeStore } from "@/store/threeStore";
 
 const EXAMPLE_PROMPTS = [
   "Draw a 10m x 8m living room with two windows on the north wall",
@@ -35,6 +35,11 @@ const EXAMPLE_PROMPTS = [
   "Create an office layout",
 ];
 
+type PromptHistoryItem = {
+  prompt: string;
+  timestamp: number;
+};
+
 export const AIPromptPanel = () => {
   const {
     isOpen,
@@ -42,8 +47,6 @@ export const AIPromptPanel = () => {
     promptHistory,
     previewObjects,
     isProcessing,
-    lastParsedResult,
-    lastDrawCommands,
     setPrompt,
     setProcessing,
     setParsedResult,
@@ -130,12 +133,12 @@ export const AIPromptPanel = () => {
             addObject(obj);
             // Sync to cloud
             socket.emit("create_object", {
-               projectId,
-               type: "create_object",
-               objectId: obj.id,
-               userId: USER_ID,
-               timestamp: Date.now(),
-               payload: obj,
+              projectId,
+              type: "create_object",
+              objectId: obj.id,
+              userId: USER_ID,
+              timestamp: Date.now(),
+              payload: obj,
             });
           }
           clearPreview();
@@ -163,6 +166,7 @@ export const AIPromptPanel = () => {
       addToHistory,
       addToConversation,
       clearPreview,
+      projectId,
       setPrompt,
     ]
   );
@@ -173,18 +177,26 @@ export const AIPromptPanel = () => {
       addObject(obj);
       // Sync to cloud
       socket.emit("create_object", {
-         projectId,
-         type: "create_object",
-         objectId: obj.id,
-         userId: USER_ID,
-         timestamp: Date.now(),
-         payload: obj,
+        projectId,
+        type: "create_object",
+        objectId: obj.id,
+        userId: USER_ID,
+        timestamp: Date.now(),
+        payload: obj,
       });
     }
     clearPreview();
     setPrompt("");
     setWarnings([]);
-  }, [previewObjects, addObject, pushHistory, clearPreview, setPrompt, projectId]);
+  }, [
+    previewObjects,
+    addObject,
+    pushHistory,
+    clearPreview,
+    setPrompt,
+    setWarnings,
+    projectId,
+  ]);
 
   const rejectPreview = useCallback(() => {
     clearPreview();
@@ -243,7 +255,7 @@ export const AIPromptPanel = () => {
         {/* ── Prompt History Dropdown ──────────────────────────── */}
         {showHistory && promptHistory.length > 0 && (
           <div className="max-h-32 overflow-y-auto border-b border-white/5 bg-black/30">
-            {promptHistory.map((item, i) => (
+            {promptHistory.map((item: PromptHistoryItem, i: number) => (
               <button
                 key={i}
                 onClick={() => {

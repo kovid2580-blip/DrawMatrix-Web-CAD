@@ -1,20 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlignLeft,
   Box as Box3DIcon,
-  BoxSelect,
-  ChevronDown,
   Circle as CircleIcon,
   Clock,
-  Combine,
   Construction,
   Copy,
-  CornerUpRight,
   Cylinder as CylinderIcon,
-  Disc,
-  Divide,
   DoorOpen,
   Download,
   ExternalLink,
@@ -25,17 +19,13 @@ import {
   Layers,
   Layout,
   LogOut,
-  Maximize,
   Maximize2,
   Minus,
-  MousePointer,
-  MousePointer2,
   Move,
   Package,
   Plus,
   Redo,
   RefreshCw,
-  Rotate3d,
   RotateCw,
   Ruler,
   Save,
@@ -43,20 +33,16 @@ import {
   Scissors,
   Search,
   Settings,
-  Settings2,
-  Shapes,
   Shield,
   Sparkles,
   Square,
   Sun,
   Table as TableIcon,
   Tent,
-  Trash2,
   Triangle,
   Type,
   Undo,
   UnfoldHorizontal,
-  View,
   Video,
   Waves,
   Zap,
@@ -64,7 +50,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import { ThreeObject, ThreeObjectType, useThreeStore } from "@/store";
+import {
+  ThreeObject,
+  ThreeObjectType,
+  UserPresence,
+  useThreeStore,
+} from "@/store";
 import { useAIStore } from "@/store/ai-store";
 import { socket } from "@/lib/socket";
 import { useCall } from "@/providers/CallContext";
@@ -81,6 +72,8 @@ interface ToolButtonProps {
   onClick?: () => void;
   large?: boolean;
 }
+
+type ObjectProperties = ThreeObject["properties"];
 
 const ToolButton = ({
   icon,
@@ -153,18 +146,7 @@ const Ribbon = ({
 
   const [autoSaveInterval, setAutoSaveInterval] = useState<number | null>(null);
 
-  React.useEffect(() => {
-    if (!autoSaveInterval) return;
-
-    const intervalId = setInterval(() => {
-      handleSave();
-      console.log("Auto-saved at", new Date().toLocaleTimeString());
-    }, autoSaveInterval * 1000);
-
-    return () => clearInterval(intervalId);
-  }, [autoSaveInterval, projectId, projectName]);
-
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!projectId) return;
 
     const snapshot = getSnapshot();
@@ -203,7 +185,18 @@ const Ribbon = ({
       content: snapshot,
       lastModified: timestamp,
     });
-  };
+  }, [getSnapshot, projectId, projectName, session?.user?.email]);
+
+  useEffect(() => {
+    if (!autoSaveInterval) return;
+
+    const intervalId = setInterval(() => {
+      void handleSave();
+      console.log("Auto-saved at", new Date().toLocaleTimeString());
+    }, autoSaveInterval * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [autoSaveInterval, handleSave]);
 
   const handleSetAutoSave = () => {
     const seconds = window.prompt(
@@ -224,7 +217,10 @@ const Ribbon = ({
     router.push("/dashboard");
   };
 
-  const handleCreateObject = (type: ThreeObjectType, props: any = {}) => {
+  const handleCreateObject = (
+    type: ThreeObjectType,
+    props: ObjectProperties = {}
+  ) => {
     const userId =
       typeof window !== "undefined"
         ? window.localStorage.getItem("cad_user_id")
@@ -254,11 +250,18 @@ const Ribbon = ({
     }
 
     // Default properties for complex types
-    if (type === "text" && !props.text) props.text = "New Text Label";
-    if (type === "dimension" && !props.start) {
-      props.start = [0, 0, 0];
-      props.end = [5, 0, 0];
-      props.offset = 1;
+    const resolvedProps: ObjectProperties = { ...props };
+
+    if (type === "text" && typeof resolvedProps.text !== "string") {
+      resolvedProps.text = "New Text Label";
+    }
+    if (
+      type === "dimension" &&
+      !Array.isArray((resolvedProps as { start?: unknown }).start)
+    ) {
+      resolvedProps.start = [0, 0, 0];
+      resolvedProps.end = [5, 0, 0];
+      resolvedProps.offset = 1;
     }
 
     const newObj: ThreeObject = {
@@ -270,7 +273,7 @@ const Ribbon = ({
         rotation: [0, 0, 0, 1],
         scale: [1, 1, 1],
       },
-      properties: { ...props },
+      properties: resolvedProps,
       color: "#ffffff",
       lastModifiedBy: userId || "unknown",
     };
@@ -283,7 +286,7 @@ const Ribbon = ({
       timestamp: Date.now(),
       payload: newObj,
     });
-    setTool(type as any);
+    setTool(type);
   };
 
   return (
@@ -333,7 +336,7 @@ const Ribbon = ({
 
         {/* Participants Presence List */}
         <div className="flex items-center -space-x-2 mr-4 group px-2 border-l border-white/10 ml-2">
-          {Object.values(presences).map((user: any) => (
+          {Object.values(presences).map((user: UserPresence) => (
             <div
               key={user.id}
               title={user.name}

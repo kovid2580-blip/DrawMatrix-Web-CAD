@@ -9,7 +9,12 @@ export interface RoomRequirement {
   depth: number;
 }
 
-export const ARCHITECTURAL_DEFAULTS = {
+type RoomDefaults = {
+  width: number;
+  depth: number;
+};
+
+const ROOM_DEFAULTS: Record<string, RoomDefaults> = {
   living_room: { width: 5, depth: 4 },
   bedroom: { width: 4, depth: 3 },
   kitchen: { width: 3, depth: 3 },
@@ -17,6 +22,10 @@ export const ARCHITECTURAL_DEFAULTS = {
   office: { width: 4, depth: 4 },
   meeting_room: { width: 5, depth: 4 },
   classroom: { width: 10, depth: 8 },
+};
+
+export const ARCHITECTURAL_DEFAULTS = {
+  ...ROOM_DEFAULTS,
   corridor_width: 1.2,
   wall_thickness: 0.2,
   entrance_door_width: 1.2,
@@ -27,7 +36,7 @@ export const ARCHITECTURAL_DEFAULTS = {
 
 export function getRoomRequirements(roomTypes: string[]): RoomRequirement[] {
   return roomTypes.map((type) => {
-    const defaults = (ARCHITECTURAL_DEFAULTS as any)[type] || {
+    const defaults = ROOM_DEFAULTS[type] ?? {
       width: 4,
       depth: 4,
     };

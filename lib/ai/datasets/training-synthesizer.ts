@@ -23,8 +23,6 @@ export const ROOM_TYPES = [
   "ward",
   "icu",
 ];
-const WALL_DIRECTIONS = ["north", "south", "east", "west"];
-const MATERIALS = ["concrete", "glass", "brick", "timber", "steel"];
 
 export function generateTrainingData(): TrainingSample[] {
   const samples: TrainingSample[] = [];

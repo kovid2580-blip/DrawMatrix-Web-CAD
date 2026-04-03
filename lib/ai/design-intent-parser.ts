@@ -1,6 +1,5 @@
 import { DrawCommand, ParsedEntity, ParsedPrompt } from "@/store/ai-store";
 
-import { ARCHITECTURAL_DEFAULTS } from "./requirement-engine";
 import {
   detectLayoutType,
   generateArchitecturalSpecs,

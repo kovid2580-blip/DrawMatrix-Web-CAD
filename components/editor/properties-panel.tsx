@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Lock, Settings2, Trash2, Unlock } from "lucide-react";
+import { Settings2, Trash2 } from "lucide-react";
 
 import { useThreeStore } from "@/store";
 
@@ -19,7 +19,7 @@ export const PropertiesPanel = () => {
     );
   }
 
-  const handlePropChange = (key: string, value: any) => {
+  const handlePropChange = (key: string, value: string | number) => {
     updateObject(selectedObj.id, {
       properties: { ...selectedObj.properties, [key]: value },
     });
@@ -66,13 +66,22 @@ export const PropertiesPanel = () => {
             Geometry
           </span>
           {Object.entries(selectedObj.properties).map(([key, value]) => {
-            if (typeof value === "object") return null;
+            if (
+              typeof value === "object" ||
+              typeof value === "boolean" ||
+              value == null
+            ) {
+              return null;
+            }
+
+            const inputValue =
+              typeof value === "number" ? value : String(value);
             return (
               <div key={key} className="flex items-center justify-between">
                 <span className="capitalize">{key}</span>
                 <input
                   type={typeof value === "number" ? "number" : "text"}
-                  value={value}
+                  value={inputValue}
                   onChange={(e) =>
                     handlePropChange(
                       key,
@@ -94,7 +103,11 @@ export const PropertiesPanel = () => {
               Text Content
             </span>
             <textarea
-              value={selectedObj.properties.text || ""}
+              value={
+                typeof selectedObj.properties.text === "string"
+                  ? selectedObj.properties.text
+                  : ""
+              }
               onChange={(e) => handlePropChange("text", e.target.value)}
               className="w-full bg-black/50 border border-white/10 rounded p-2 min-h-[60px] outline-none focus:border-cyan-500"
             />

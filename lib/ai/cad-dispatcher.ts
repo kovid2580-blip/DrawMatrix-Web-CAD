@@ -4,7 +4,7 @@
  * them to the threeStore via addObject().
  */
 
-import { ThreeObject, ThreeObjectType } from "@/store/threeStore";
+import { ThreeObject } from "@/store/threeStore";
 import { DrawCommand } from "@/store/ai-store";
 
 const generateId = () =>

@@ -5,8 +5,9 @@ import React, { useEffect } from "react";
 
 const UserSync = () => {
   const { data: session } = useSession();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
-  
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+
   useEffect(() => {
     if (session?.user?.email) {
       fetch(`${API_BASE_URL}/upsert-user`, {
@@ -22,7 +23,11 @@ const UserSync = () => {
   return null;
 };
 
-export const NextAuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const NextAuthProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   return (
     <SessionProvider>
       <UserSync />

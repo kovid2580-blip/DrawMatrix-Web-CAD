@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import {
   ContactShadows,
   Environment,
@@ -22,7 +22,13 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 
-import { ThreeObject, useThreeStore } from "@/store";
+import {
+  Layer,
+  ThreeObject,
+  ThreeObjectType,
+  UserPresence,
+  useThreeStore,
+} from "@/store";
 import { socket } from "@/lib/socket";
 import { GeometryEngine } from "@/lib/geometryEngine";
 import { useAIStore } from "@/store/ai-store";
@@ -43,7 +49,31 @@ const USER_NAME = `Architect_${Math.floor(Math.random() * 1000)}`;
 /**
  * 2D Primitive Renderer (Line, Circle, Arc etc.)
  */
-const DraftingObject = ({ obj, layer, isSelected, onClick }: any) => {
+type DraftingObjectProps = {
+  obj: ThreeObject;
+  layer?: Layer;
+  isSelected: boolean;
+  onClick: (event: ThreeEvent<MouseEvent>) => void;
+};
+
+type CADObjectProps = {
+  obj: ThreeObject;
+  isSelected: boolean;
+  onSelect: (id: string | null) => void;
+  setRef: (mesh: THREE.Mesh | null) => void;
+  activeTool: string;
+};
+
+type PresenceSocketPayload = UserPresence & {
+  userId: string;
+};
+
+const DraftingObject = ({
+  obj,
+  layer,
+  isSelected,
+  onClick,
+}: DraftingObjectProps) => {
   const points = useMemo(() => {
     switch (obj.type) {
       case "line":
@@ -100,7 +130,7 @@ const DraftingObject = ({ obj, layer, isSelected, onClick }: any) => {
       onClick={onClick}
     >
       <Line
-        points={points as any}
+        points={points}
         color={isSelected ? "#ffcc00" : layer?.color || "#ffffff"}
         lineWidth={2}
       />
@@ -113,12 +143,11 @@ const DraftingObject = ({ obj, layer, isSelected, onClick }: any) => {
  */
 const CADObject = ({
   obj,
-  objects,
   isSelected,
   onSelect,
   setRef,
   activeTool,
-}: any) => {
+}: CADObjectProps) => {
   const layers = useThreeStore((s) => s.layers);
   const presences = useThreeStore((s) => s.presences);
   const isDragging = useThreeStore((s) => s.isDragging);
@@ -169,7 +198,7 @@ const CADObject = ({
 
   const isLocked = !!obj.lockedBy && obj.lockedBy !== USER_ID;
 
-  const handleClick = (e: any) => {
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
     if (activeTool !== "select") return;
     e.stopPropagation();
     if (isLocked || (layer && layer.locked)) return;
@@ -211,7 +240,7 @@ const CADObject = ({
     quaternion: !isSelected || !isDragging ? quaternion : undefined,
     scale: !isSelected || !isDragging ? scale : undefined,
     onClick: handleClick,
-    ref: (ref: any) => isSelected && setRef(ref),
+    ref: (ref: THREE.Mesh | null) => isSelected && setRef(ref),
     castShadow: true,
     receiveShadow: true,
   };
@@ -228,7 +257,7 @@ const CADObject = ({
     );
   }
 
-  if (obj.type === "text" || obj.type === "mtext") {
+  if (obj.type === "text") {
     return (
       <Html position={obj.transform.position} center>
         <div className="bg-black/50 backdrop-blur px-2 py-1 rounded text-white text-[10px] whitespace-nowrap border border-white/20 select-none">
@@ -352,7 +381,7 @@ const ThreeScene = ({
   const { camera } = useThree();
   const surfaceRef = useRef<THREE.Mesh>(null);
   const lightRef = useRef<THREE.DirectionalLight>(null);
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null);
   const lastEmitRef = useRef(0);
   const lastPresenceEmitRef = useRef(0);
 
@@ -362,7 +391,7 @@ const ThreeScene = ({
   }, [isDragging]);
 
   // Keep drawing surface and light following the camera for "infinite" reach
-  useFrame((state) => {
+  useFrame(() => {
     if (surfaceRef.current) {
       surfaceRef.current.position.x = camera.position.x;
       surfaceRef.current.position.z = camera.position.z;
@@ -383,7 +412,6 @@ const ThreeScene = ({
 
     // Cinematic Auto-Orbit
     if (cinematicMode && controlsRef.current) {
-      const time = state.clock.getElapsedTime();
       controlsRef.current.autoRotate = true;
       controlsRef.current.autoRotateSpeed = 2.0;
       controlsRef.current.update();
@@ -452,11 +480,14 @@ const ThreeScene = ({
     socket.on("presence-update", (data) =>
       updatePresence(data.userId, data.presence)
     );
-    socket.on("room_presence_list", (list) => {
-      Object.entries(list).forEach(([sid, presence]: [string, any]) => {
-        updatePresence(presence.userId, presence);
-      });
-    });
+    socket.on(
+      "room_presence_list",
+      (list: Record<string, PresenceSocketPayload>) => {
+        Object.values(list).forEach((presence) => {
+          updatePresence(presence.userId, presence);
+        });
+      }
+    );
     socket.on("presence-disconnect", (userId) => removePresence(userId));
     socket.on("replace_geometry", ({ objectId, geometryData }) =>
       updateObject(objectId, { geometryData }, { recordHistory: false })
@@ -526,9 +557,15 @@ const ThreeScene = ({
 
             if (nearestWall) {
               const wallGeom = GeometryEngine.createWall(
-                nearestWall.properties.width || 4,
-                nearestWall.properties.height || 2.5,
-                nearestWall.properties.thickness || 0.2
+                typeof nearestWall.properties.width === "number"
+                  ? nearestWall.properties.width
+                  : 4,
+                typeof nearestWall.properties.height === "number"
+                  ? nearestWall.properties.height
+                  : 2.5,
+                typeof nearestWall.properties.thickness === "number"
+                  ? nearestWall.properties.thickness
+                  : 0.2
               );
               const openingGeom =
                 movingObj.type === "door"
@@ -573,12 +610,8 @@ const ThreeScene = ({
   );
 
   const handlePointerDown = useCallback(
-    (e: any) => {
-      if (
-        activeTool === "select" ||
-        (activeTool as any) === "none" ||
-        cinematicMode
-      )
+    (e: ThreeEvent<PointerEvent>) => {
+      if (activeTool === "select" || activeTool === "none" || cinematicMode)
         return;
       const pt = snap(e.point);
       setDrawingStart(pt);
@@ -588,7 +621,7 @@ const ThreeScene = ({
   );
 
   const handlePointerMove = useCallback(
-    (e: any) => {
+    (e: ThreeEvent<PointerEvent>) => {
       if (cinematicMode) return;
       const pt = snap(e.point);
       setCurrentPoint(pt);
@@ -618,126 +651,129 @@ const ThreeScene = ({
     [camera, snap, cinematicMode, projectId]
   );
 
-  const handlePointerUp = useCallback(
-    (e: any) => {
-      if (!drawingStart || !currentPoint || cinematicMode) return;
+  const handlePointerUp = useCallback(() => {
+    if (!drawingStart || !currentPoint || cinematicMode) return;
 
-      const userId =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("cad_user_id")
-          : "guest";
-      const props: any = {};
-      let pos: [number, number, number] = [
-        drawingStart.x,
-        drawingStart.y,
-        drawingStart.z,
+    const userId =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("cad_user_id")
+        : "guest";
+    const props: ThreeObject["properties"] = {};
+    let pos: [number, number, number] = [
+      drawingStart.x,
+      drawingStart.y,
+      drawingStart.z,
+    ];
+
+    if (activeTool === "line") {
+      props.start = [0, 0, 0];
+      props.end = [
+        currentPoint.x - drawingStart.x,
+        0,
+        currentPoint.z - drawingStart.z,
       ];
+    } else if (activeTool === "circle") {
+      props.radius = drawingStart.distanceTo(currentPoint);
+    } else if (
+      activeTool === "box" ||
+      activeTool === "wall" ||
+      activeTool === "slab" ||
+      activeTool === "rect"
+    ) {
+      props.width = Math.abs(currentPoint.x - drawingStart.x) || 1;
+      props.depth = Math.abs(currentPoint.z - drawingStart.z) || 1;
+      props.height = 2.5;
+      props.thickness = 0.2;
+      pos = [
+        (drawingStart.x + currentPoint.x) / 2,
+        0,
+        (drawingStart.z + currentPoint.z) / 2,
+      ];
+    }
 
-      if (activeTool === "line") {
-        props.start = [0, 0, 0];
-        props.end = [
-          currentPoint.x - drawingStart.x,
-          0,
-          currentPoint.z - drawingStart.z,
-        ];
-      } else if (activeTool === "circle") {
-        props.radius = drawingStart.distanceTo(currentPoint);
-      } else if (
-        activeTool === "box" ||
-        activeTool === "wall" ||
-        activeTool === "slab" ||
-        activeTool === "rect"
-      ) {
-        props.width = Math.abs(currentPoint.x - drawingStart.x) || 1;
-        props.depth = Math.abs(currentPoint.z - drawingStart.z) || 1;
-        props.height = 2.5;
-        props.thickness = 0.2;
-        pos = [
-          (drawingStart.x + currentPoint.x) / 2,
-          0,
-          (drawingStart.z + currentPoint.z) / 2,
-        ];
-      }
+    const newObj: ThreeObject = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: activeTool as ThreeObjectType,
+      layerId: activeLayerId,
+      transform: {
+        position: pos,
+        rotation: [0, 0, 0, 1],
+        scale: [1, 1, 1],
+      },
+      properties: props,
+      color: "#ffffff",
+      lastModifiedBy: userId || "unknown",
+    };
 
-      const newObj: ThreeObject = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: activeTool as any,
-        layerId: activeLayerId,
-        transform: {
-          position: pos,
-          rotation: [0, 0, 0, 1],
-          scale: [1, 1, 1],
-        },
-        properties: props,
-        color: "#ffffff",
-        lastModifiedBy: userId || "unknown",
-      };
+    addObject(newObj);
+    socket.emit("create_object", {
+      projectId,
+      type: "create_object",
+      objectId: newObj.id,
+      userId,
+      timestamp: Date.now(),
+      payload: newObj,
+    });
 
-      addObject(newObj);
-      socket.emit("create_object", {
-        projectId,
-        type: "create_object",
-        objectId: newObj.id,
-        userId,
-        timestamp: Date.now(),
-        payload: newObj,
-      });
+    // Architectural Logic for New Placement: Auto-cut openings
+    if (newObj.type === "door" || newObj.type === "window") {
+      const nearestWall = objects.find(
+        (o) =>
+          o.type === "wall" &&
+          new THREE.Vector3(...o.transform.position).distanceTo(
+            new THREE.Vector3(...pos)
+          ) < 2
+      );
 
-      // Architectural Logic for New Placement: Auto-cut openings
-      if (newObj.type === "door" || newObj.type === "window") {
-        const nearestWall = objects.find(
-          (o) =>
-            o.type === "wall" &&
-            new THREE.Vector3(...o.transform.position).distanceTo(
-              new THREE.Vector3(...pos)
-            ) < 2
+      if (nearestWall) {
+        const wallGeom = GeometryEngine.createWall(
+          typeof nearestWall.properties.width === "number"
+            ? nearestWall.properties.width
+            : 4,
+          typeof nearestWall.properties.height === "number"
+            ? nearestWall.properties.height
+            : 2.5,
+          typeof nearestWall.properties.thickness === "number"
+            ? nearestWall.properties.thickness
+            : 0.2
+        );
+        const openingGeom =
+          newObj.type === "door"
+            ? new THREE.BoxGeometry(0.9, 2.1, 0.4)
+            : new THREE.BoxGeometry(1.2, 1.2, 0.4);
+
+        const resultGeom = GeometryEngine.cutOpeningInWall(
+          wallGeom,
+          nearestWall.transform.position,
+          openingGeom,
+          pos
         );
 
-        if (nearestWall) {
-          const wallGeom = GeometryEngine.createWall(
-            nearestWall.properties.width || 4,
-            nearestWall.properties.height || 2.5,
-            nearestWall.properties.thickness || 0.2
-          );
-          const openingGeom =
-            newObj.type === "door"
-              ? new THREE.BoxGeometry(0.9, 2.1, 0.4)
-              : new THREE.BoxGeometry(1.2, 1.2, 0.4);
-
-          const resultGeom = GeometryEngine.cutOpeningInWall(
-            wallGeom,
-            nearestWall.transform.position,
-            openingGeom,
-            pos
-          );
-
-          const geometryData = JSON.stringify(resultGeom.toJSON());
-          updateObject(nearestWall.id, { geometryData });
-          socket.emit("replace_geometry", {
-            projectId,
-            objectId: nearestWall.id,
-            geometryData,
-            userId,
-          });
-        }
+        const geometryData = JSON.stringify(resultGeom.toJSON());
+        updateObject(nearestWall.id, { geometryData });
+        socket.emit("replace_geometry", {
+          projectId,
+          objectId: nearestWall.id,
+          geometryData,
+          userId,
+        });
       }
+    }
 
-      setDrawingStart(null);
-      setCurrentPoint(null);
-      setTool("select");
-    },
-    [
-      drawingStart,
-      currentPoint,
-      activeTool,
-      activeLayerId,
-      addObject,
-      updateObject,
-      objects,
-      setTool,
-      cinematicMode,
-    ]
-  );
+    setDrawingStart(null);
+    setCurrentPoint(null);
+    setTool("select");
+  }, [
+    drawingStart,
+    currentPoint,
+    activeTool,
+    activeLayerId,
+    addObject,
+    updateObject,
+    objects,
+    setTool,
+    cinematicMode,
+  ]);
 
   const localCursor = useThreeStore((s) => s.localCursor);
 
@@ -791,7 +827,6 @@ const ThreeScene = ({
           <CADObject
             key={obj.id}
             obj={obj}
-            objects={objects}
             isSelected={obj.id === selectedObjectId}
             onSelect={setSelectedObjectId}
             setRef={setSelectedMesh}
@@ -804,7 +839,6 @@ const ThreeScene = ({
           <CADObject
             key={`preview-${obj.id}`}
             obj={{ ...obj, color: "#00ffff" }}
-            objects={[]}
             isSelected={false}
             onSelect={() => {}}
             setRef={() => {}}
@@ -876,7 +910,7 @@ const ThreeScene = ({
           dampingFactor={0.05}
           screenSpacePanning={viewMode === "2D"}
           enableRotate={
-            (activeTool === "select" || (activeTool as any) === "none") &&
+            (activeTool === "select" || activeTool === "none") &&
             viewMode === "3D" &&
             !selectedMesh
           }
@@ -902,7 +936,6 @@ export default function ThreeLayer({
     presences,
     viewMode,
     cinematicMode,
-    setCinematicMode,
   } = useThreeStore();
   const [transformMode, setTransformMode] = useState<
     "translate" | "rotate" | "scale"
@@ -954,7 +987,7 @@ export default function ThreeLayer({
             </span>
           </div>
           <div className="flex -space-x-2 pointer-events-auto">
-            {Object.values(presences).map((u: any) => (
+            {Object.values(presences).map((u: UserPresence) => (
               <div
                 key={u.id}
                 title={u.name}

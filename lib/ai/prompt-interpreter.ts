@@ -115,6 +115,8 @@ interface RawDimensions {
   dimB?: number;
 }
 
+type TrainingEntity = Partial<ParsedEntity>;
+
 function extractRawDimensions(text: string): RawDimensions {
   const dims: RawDimensions = {};
   for (const pattern of DIMENSION_PATTERNS) {
@@ -261,8 +263,8 @@ export function interpretPrompt(prompt: string): ParsedPrompt {
   const matchedExpected = findBestMatch(normalized);
   if (matchedExpected) {
     return {
-      entities: (matchedExpected as any[]).map(
-        (e) =>
+      entities: matchedExpected.map(
+        (e: TrainingEntity) =>
           ({
             entity: e.entity,
             type: (e.type || e.entity || "room") as ParsedEntity["type"],

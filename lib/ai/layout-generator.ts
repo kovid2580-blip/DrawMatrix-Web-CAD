@@ -3,6 +3,8 @@
  * Arranges rooms logically using architectural adjacency rules and coordinate mapping.
  */
 
+import { DrawCommand } from "@/store/ai-store";
+
 import {
   ARCHITECTURAL_DEFAULTS,
   getRoomRequirements,
@@ -250,8 +252,6 @@ function layoutRooms(rooms: RoomSpec[]): RoomSpec[] {
 }
 
 // ── CAD Integration Helper ──────────────────────────────────────────────────
-
-import { DrawCommand } from "@/store/ai-store";
 
 export function specsToCommands(specs: RoomSpec[]): DrawCommand[] {
   const commands: DrawCommand[] = [];
