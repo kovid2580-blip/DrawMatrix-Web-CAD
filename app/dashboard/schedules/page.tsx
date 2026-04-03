@@ -378,9 +378,45 @@ const SchedulesPage = () => {
     }
   };
 
-  const onlineUsers = allUsers.filter((user) => user.status === "online");
-  const offlineUsers = allUsers.filter((user) => user.status !== "online");
   const currentProfile = getCurrentUserProfile();
+  const onlinePresenceRecords = Object.values(presences)
+    .filter((presence) => presence.status !== "offline")
+    .map((presence) => {
+      const matchedUser = allUsers.find(
+        (user) =>
+          user.userId === presence.id ||
+          user.presenceKey === presence.id ||
+          user.assignedName === presence.name ||
+          user.username === presence.name
+      );
+
+      return {
+        id: matchedUser?._id || presence.id,
+        name:
+          matchedUser?.assignedName ||
+          matchedUser?.username ||
+          presence.name ||
+          "User",
+        color: presence.color || "#3b82f6",
+        isCurrentUser:
+          presence.id === currentProfile.userId ||
+          matchedUser?.userId === currentProfile.userId,
+      };
+    })
+    .filter(
+      (record, index, records) =>
+        records.findIndex((candidate) => candidate.id === record.id) === index
+    );
+  const onlineIdentityKeys = new Set(
+    onlinePresenceRecords.map((record) => record.id)
+  );
+  const offlineUsers = allUsers.filter(
+    (user) =>
+      user.status !== "online" &&
+      !onlineIdentityKeys.has(user._id) &&
+      !onlineIdentityKeys.has(user.userId || "") &&
+      !onlineIdentityKeys.has(user.presenceKey || "")
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 p-8 text-white">
@@ -469,34 +505,22 @@ const SchedulesPage = () => {
                   <DropdownMenuLabel className="px-2 py-1.5 text-[10px] uppercase tracking-widest text-slate-500">
                     Active Now (Room {ROOM_ID})
                   </DropdownMenuLabel>
-                  {onlineUsers.length > 0 ? (
-                    onlineUsers.map((user) => (
+                  {onlinePresenceRecords.length > 0 ? (
+                    onlinePresenceRecords.map((user) => (
                       <DropdownMenuItem
-                        key={user._id}
+                        key={user.id}
                         className="flex cursor-default items-center justify-between rounded-lg p-2 hover:bg-white/5 focus:bg-white/5"
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className="flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-black"
-                            style={{
-                              backgroundColor:
-                                Object.values(presences).find(
-                                  (presence) =>
-                                    presence.id === (user.userId || user.email)
-                                )?.color || "#3b82f6",
-                            }}
+                            style={{ backgroundColor: user.color }}
                           >
-                            {(user.assignedName || user.username || "?")[0]}
+                            {(user.name || "?")[0]}
                           </div>
                           <div className="flex flex-col">
                             <span className="text-xs font-bold text-white">
-                              {user.assignedName || user.username}{" "}
-                              {(user.userId &&
-                                user.userId === currentProfile.userId) ||
-                              (user.email &&
-                                user.email === session?.user?.email)
-                                ? "(You)"
-                                : ""}
+                              {user.name} {user.isCurrentUser ? "(You)" : ""}
                             </span>
                             <span className="text-[9px] uppercase tracking-tighter text-green-500">
                               Online
