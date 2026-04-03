@@ -33,10 +33,16 @@ export const getCurrentUserProfile = () => {
     };
   }
 
-  const displayName =
+  const storedDisplayName =
     window.localStorage.getItem("drawmatrix_display_name") || "Guest";
+  const displayName =
+    storedDisplayName === "Guest User" ? "Guest" : storedDisplayName;
   const email = window.localStorage.getItem("drawmatrix_user_email") || "";
   const userId = window.localStorage.getItem("drawmatrix_user_id") || "guest";
+
+  if (displayName !== storedDisplayName) {
+    window.localStorage.setItem("drawmatrix_display_name", displayName);
+  }
 
   return { displayName, email, userId };
 };

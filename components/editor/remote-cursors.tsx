@@ -13,19 +13,29 @@ export const RemoteCursors = () => {
     <>
       {Object.values(presences).map((user: UserPresence) => {
         if (!user.cursor) return null;
+        const label = user.name === "Guest User" ? "Guest" : user.name;
 
         return (
           <group key={user.id} position={user.cursor}>
-            <Html distanceFactor={6} style={{ pointerEvents: "none" }}>
-              <div className="flex flex-col items-center">
+            <Html
+              center
+              distanceFactor={1}
+              style={{ pointerEvents: "none" }}
+              transform
+              sprite
+            >
+              <div
+                className="flex flex-col items-center"
+                style={{ transform: "scale(0.18)" }}
+              >
                 <div
-                  className="max-w-[72px] truncate rounded-full px-1.5 py-px text-[8px] font-bold text-white shadow-lg whitespace-nowrap"
+                  className="max-w-[88px] truncate rounded-full px-2 py-1 text-[10px] font-bold text-white shadow-lg whitespace-nowrap"
                   style={{ backgroundColor: user.color }}
                 >
-                  {user.name}
+                  {label}
                 </div>
                 <div style={{ color: user.color }}>
-                  <MousePointer2 size={12} fill="currentColor" />
+                  <MousePointer2 size={16} fill="currentColor" />
                 </div>
               </div>
             </Html>
