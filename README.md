@@ -1,35 +1,65 @@
-# DRAWMATRIX: A Professional Collaborative CAD Tool
+# DrawMatrix
 
-## Online Realtime Drawing Tool
+Collaborative architectural drafting and CAD workspace built with Next.js, Zustand, Three.js, and Socket.IO.
 
-## Technologies
+## Local Setup
 
-- Next.js: A React framework for server-side rendering (SSR) and static site generation (SSG), ensuring a performant and SEO-friendly application.
-- TypeScript: Enhances code readability, maintainability, and type safety with strong typing and static type checking.
-- Tailwind CSS: A utility-first CSS framework for rapid and responsive UI development.
-- Shadcn UI: A UI component library that might provide pre-built components for common UI elements, potentially streamlining the development process.
-- Zustand: A lightweight state management solution for managing application state in a centralized and reactive manner.
+1. Install frontend dependencies in [drawmatrix_reference](./):
+   `npm install`
+2. Install backend dependencies in [server](../server):
+   `npm install`
+3. Copy [`.env.example`](./.env.example) to `.env.local` for the frontend.
+4. Copy [`server/.env.example`](../server/.env.example) to `server/.env`.
+5. Start the backend:
+   `npm run dev`
+6. Start the frontend:
+   `npm run dev`
 
-## Installation
+## Deployment
 
-- Clone the repository: git clone `https://github.com/kovid2580-blip/DrawMatrix-web-autocad-engine-.git`
-- Install dependencies: `npm install` (or `bun install`)
+### Frontend
 
-## Development
+- Host [drawmatrix_reference](./) on Vercel.
+- Required auth variables:
+  `NEXTAUTH_URL`
+  `NEXTAUTH_SECRET`
+  `GOOGLE_CLIENT_ID`
+  `GOOGLE_CLIENT_SECRET`
+- Required app variables:
+  `NEXT_PUBLIC_BACKEND_URL`
+  `NEXT_PUBLIC_SOCKET_URL`
+  `NEXT_PUBLIC_APP_URL`
+- Optional integrations:
+  `NEXT_PUBLIC_STREAM_API_KEY`
+  `STREAM_SECRET_KEY`
+  `NEXT_PUBLIC_ZEGO_APP_ID`
+  `NEXT_PUBLIC_ZEGO_SERVER_SECRET`
+  `NEXT_PUBLIC_CAD_ENGINE_URL`
 
-- Start the development server: `npm run dev` (or `bun dev`)
-- The application will be accessible at `http://localhost:3000` (default port)
+### Backend
 
-## Collaboration & Deployment
+- Host [server](../server) on Render, Railway, or another long-running Node host.
+- Required variables:
+  `PORT`
+  `FRONTEND_URL`
+  `NEXT_PUBLIC_APP_URL`
 
-To use the tool with others, you must deploy it online:
+## Backend API Expectations
 
-### 1. Frontend (Next.js)
-- **Host**: [Vercel](https://vercel.com/) (recommended).
-- Copy all environment variables from `.env.local` to Vercel's Dashboard.
+The frontend expects the backend to serve:
 
-### 2. Signaling Server (Socket.io)
-- **Host**: [Render](https://render.com/).
-- Deploy the `/server` folder.
-- Update the client’s `SOCKET_URL` to point to your public server.
+- `/health`
+- `/api/projects`
+- `/api/messages`
+- `/api/schedules`
+- `/api/presence`
+- `/get-users`
+- `/upsert-user`
 
+## Quality Gates
+
+- `npm run lint`
+- `npx tsc --noEmit`
+- `npm run build`
+
+The frontend build now fails on real lint/type errors instead of skipping them.
