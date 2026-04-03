@@ -5,17 +5,10 @@ import { motion } from "framer-motion";
 import { ArrowRight, Hexagon, Layers, Monitor, Zap } from "lucide-react";
 
 import ParticleBackground from "@/components/particle-background";
-import {
-  clearAuthStorage,
-  ensureLocalAccessProfile,
-  getCurrentUserProfile,
-} from "@/lib/auth";
+import { ensureLocalAccessProfile } from "@/lib/auth";
 
 const LandingPage = () => {
   const router = useRouter();
-  const profile = getCurrentUserProfile();
-  const hasLocalUser =
-    profile.userId !== "guest" || profile.displayName !== "Guest User";
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col font-sans text-white selection:bg-cyan-500 selection:text-white bg-gradient-to-br from-blue-900 via-blue-600 to-cyan-400">
@@ -38,46 +31,24 @@ const LandingPage = () => {
         <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-blue-100 tracking-wide"></div>
 
         <div className="flex items-center space-x-4">
-          {hasLocalUser ? (
-            <>
-              <div className="text-white/80 px-4 py-2 text-sm font-bold flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full border border-white/20 bg-cyan-500/20 flex items-center justify-center text-xs font-black">
-                  {profile.displayName.charAt(0)}
-                </div>
-                <span>{profile.displayName}</span>
-              </div>
-              <button
-                onClick={() => {
-                  clearAuthStorage();
-                  router.push("/");
-                }}
-                className="bg-gray-900/50 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200 border border-white/10"
-              >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => {
-                  ensureLocalAccessProfile();
-                  router.push("/project-access");
-                }}
-                className="text-white/80 hover:text-white px-4 py-2 text-sm font-bold transition-colors"
-              >
-                Enter
-              </button>
-              <button
-                onClick={() => {
-                  ensureLocalAccessProfile();
-                  router.push("/project-access");
-                }}
-                className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
-              >
-                Open Studio
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => {
+              ensureLocalAccessProfile();
+              router.push("/project-access");
+            }}
+            className="text-white/80 hover:text-white px-4 py-2 text-sm font-bold transition-colors"
+          >
+            Enter
+          </button>
+          <button
+            onClick={() => {
+              ensureLocalAccessProfile();
+              router.push("/project-access");
+            }}
+            className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200"
+          >
+            Open Studio
+          </button>
         </div>
       </nav>
 
@@ -120,7 +91,7 @@ const LandingPage = () => {
               }}
               className="w-full md:w-auto px-10 py-5 rounded-full bg-white text-gray-900 font-bold text-lg hover:bg-cyan-50 transition-all shadow-xl hover:shadow-cyan-400/20 flex items-center justify-center space-x-2 transform hover:-translate-y-1"
             >
-              <span>{hasLocalUser ? "Launch Studio" : "Get Started"}</span>
+              <span>Launch Studio</span>
               <ArrowRight size={20} />
             </button>
 

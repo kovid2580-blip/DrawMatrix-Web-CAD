@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { buildBackendUrl } from "@/lib/api-base";
 
+const DEFAULT_LOCAL_DISPLAY_NAME = "Kovid";
+
 export const AUTH_STORAGE_KEYS = [
   "dm_auth_mock",
   "drawmatrix_display_name",
@@ -30,16 +32,19 @@ export const clearAuthStorage = () => {
 export const getCurrentUserProfile = () => {
   if (typeof window === "undefined") {
     return {
-      displayName: "Guest",
+      displayName: DEFAULT_LOCAL_DISPLAY_NAME,
       email: "",
       userId: "guest",
     };
   }
 
   const storedDisplayName =
-    window.localStorage.getItem("drawmatrix_display_name") || "Guest";
+    window.localStorage.getItem("drawmatrix_display_name") ||
+    DEFAULT_LOCAL_DISPLAY_NAME;
   const displayName =
-    storedDisplayName === "Guest User" ? "Guest" : storedDisplayName;
+    storedDisplayName === "Guest User" || storedDisplayName === "Guest"
+      ? DEFAULT_LOCAL_DISPLAY_NAME
+      : storedDisplayName;
   const email = window.localStorage.getItem("drawmatrix_user_email") || "";
   const userId = window.localStorage.getItem("drawmatrix_user_id") || "guest";
 
@@ -70,7 +75,7 @@ const persistUserProfile = ({
 export const ensureLocalAccessProfile = () => {
   if (typeof window === "undefined") {
     return {
-      displayName: "Guest",
+      displayName: DEFAULT_LOCAL_DISPLAY_NAME,
       email: "",
       userId: "guest",
     };
@@ -78,7 +83,7 @@ export const ensureLocalAccessProfile = () => {
 
   const existing = getCurrentUserProfile();
   if (
-    existing.displayName !== "Guest" ||
+    existing.displayName !== DEFAULT_LOCAL_DISPLAY_NAME ||
     existing.email ||
     existing.userId !== "guest"
   ) {
@@ -88,7 +93,7 @@ export const ensureLocalAccessProfile = () => {
   const presenceKey = getOrCreatePresenceKey();
   const guestId = `guest-${presenceKey.slice(-6)}`;
   const profile = {
-    displayName: "Guest",
+    displayName: DEFAULT_LOCAL_DISPLAY_NAME,
     email: "",
     userId: guestId,
   };
@@ -114,7 +119,7 @@ export const syncAssignedIdentity = async () => {
     return {
       changed: false,
       profile: {
-        displayName: "Guest",
+        displayName: DEFAULT_LOCAL_DISPLAY_NAME,
         email: "",
         userId: "guest",
       },
@@ -128,7 +133,7 @@ export const syncAssignedIdentity = async () => {
 
   if (
     lastSyncedPresenceKey === presenceKey &&
-    localProfile.displayName !== "Guest" &&
+    localProfile.displayName !== DEFAULT_LOCAL_DISPLAY_NAME &&
     localProfile.displayName !== "Guest User"
   ) {
     return { changed: false, profile: localProfile };
@@ -143,7 +148,7 @@ export const syncAssignedIdentity = async () => {
       body: JSON.stringify({
         presenceKey,
         email: localProfile.email || "",
-        username: localProfile.displayName || "Guest",
+        username: localProfile.displayName || DEFAULT_LOCAL_DISPLAY_NAME,
       }),
     });
 
@@ -166,7 +171,7 @@ export const syncAssignedIdentity = async () => {
         assignedUser?.assignedName ||
         assignedUser?.username ||
         localProfile.displayName ||
-        "Guest",
+        DEFAULT_LOCAL_DISPLAY_NAME,
       email: assignedUser?.email || localProfile.email || "",
       userId:
         assignedUser?.userId ||
