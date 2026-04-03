@@ -27,14 +27,14 @@ export const clearAuthStorage = () => {
 export const getCurrentUserProfile = () => {
   if (typeof window === "undefined") {
     return {
-      displayName: "Guest User",
+      displayName: "Guest",
       email: "",
       userId: "guest",
     };
   }
 
   const displayName =
-    window.localStorage.getItem("drawmatrix_display_name") || "Guest User";
+    window.localStorage.getItem("drawmatrix_display_name") || "Guest";
   const email = window.localStorage.getItem("drawmatrix_user_email") || "";
   const userId = window.localStorage.getItem("drawmatrix_user_id") || "guest";
 
@@ -44,7 +44,7 @@ export const getCurrentUserProfile = () => {
 export const ensureLocalAccessProfile = () => {
   if (typeof window === "undefined") {
     return {
-      displayName: "Guest User",
+      displayName: "Guest",
       email: "",
       userId: "guest",
     };
@@ -52,7 +52,7 @@ export const ensureLocalAccessProfile = () => {
 
   const existing = getCurrentUserProfile();
   if (
-    existing.displayName !== "Guest User" ||
+    existing.displayName !== "Guest" ||
     existing.email ||
     existing.userId !== "guest"
   ) {
@@ -62,7 +62,7 @@ export const ensureLocalAccessProfile = () => {
   const presenceKey = getOrCreatePresenceKey();
   const guestId = `guest-${presenceKey.slice(-6)}`;
   const profile = {
-    displayName: "Guest User",
+    displayName: "Guest",
     email: "",
     userId: guestId,
   };
