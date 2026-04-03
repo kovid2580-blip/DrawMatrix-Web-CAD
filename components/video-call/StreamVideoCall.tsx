@@ -42,6 +42,9 @@ interface StreamVideoCallProps {
 }
 
 type LayoutType = "grid" | "speaker-left" | "speaker-right";
+type SetLayout = React.Dispatch<React.SetStateAction<LayoutType>>;
+type SetBoolean = React.Dispatch<React.SetStateAction<boolean>>;
+type SetString = React.Dispatch<React.SetStateAction<string>>;
 
 // ── Custom control bar ───────────────────────────────────────────────────────
 const ControlBar = ({
@@ -59,11 +62,11 @@ const ControlBar = ({
   roomName: string;
   onEndCall: () => void;
   layout: LayoutType;
-  setLayout: (l: LayoutType) => void;
+  setLayout: SetLayout;
   showParticipants: boolean;
-  setShowParticipants: (v: boolean) => void;
+  setShowParticipants: SetBoolean;
   showSettings: boolean;
-  setShowSettings: (v: boolean) => void;
+  setShowSettings: SetBoolean;
   onScreenShare: () => void;
   isScreenSharing: boolean;
 }) => {
@@ -247,7 +250,7 @@ const ControlBar = ({
               </div>
               <button
                 onClick={() => {
-                  if (navigator.share) {
+                  if ("share" in navigator) {
                     navigator.share({
                       title: "DrawMatrix Meeting",
                       text: `Join my meeting! ID: ${roomName}`,
@@ -287,7 +290,7 @@ const MeetingRoom = ({
   const callingState = useCallCallingState();
   const participants = useParticipants();
   const filtered = participants.filter((p) =>
-    (p.name ?? p.userId ?? "")
+    (p.name || p.userId || "")
       .toLowerCase()
       .includes(participantSearch.toLowerCase())
   );
@@ -375,10 +378,10 @@ const MeetingRoom = ({
                   className="flex items-center gap-2 p-2 rounded-lg bg-slate-800"
                 >
                   <div className="w-7 h-7 rounded-full bg-cyan-700 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                    {(p.name ?? p.userId ?? "?")[0].toUpperCase()}
+                    {(p.name || p.userId || "?")[0].toUpperCase()}
                   </div>
                   <span className="text-sm text-slate-200 truncate">
-                    {p.name ?? p.userId ?? "Unknown"}
+                    {p.name || p.userId || "Unknown"}
                   </span>
                   <div className="ml-auto flex gap-1">
                     {p.isSpeaking && (
@@ -422,7 +425,7 @@ const MeetingSetup = ({
   onJoin: () => void;
   roomName: string;
   displayName: string;
-  setDisplayName: (n: string) => void;
+  setDisplayName: SetString;
   joining?: boolean;
 }) => {
   const call = useStreamCall();
@@ -531,13 +534,6 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
   useEffect(() => {
     if (!client) return;
 
-    // Deep Core Fix: Ensure client state is actually initialized
-    // before attempting to create/access a call.
-    if (!client.state) {
-      console.warn("[Stream] Client state not yet available");
-      return;
-    }
-
     const callId = roomName.replace(/[^a-zA-Z0-9_-]/g, "-");
     let c: Call;
 
@@ -552,7 +548,9 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
         .then(() => setCall(c))
         .catch((err) => {
           console.error("[Stream] Setup error:", err);
-          setError(err?.message ?? "Could not connect to meeting");
+          setError(
+            err instanceof Error ? err.message : "Could not connect to meeting"
+          );
         });
     } catch (err) {
       console.error("[Stream] Fatal call initialization error:", err);
@@ -560,9 +558,7 @@ const StreamVideoCall = ({ roomName, onEndCall }: StreamVideoCallProps) => {
     }
 
     return () => {
-      if (c) {
-        c.leave().catch(() => {});
-      }
+      c.leave().catch(() => {});
     };
   }, [client, roomName]);
 

@@ -36,10 +36,12 @@ export const ARCHITECTURAL_DEFAULTS = {
 
 export function getRoomRequirements(roomTypes: string[]): RoomRequirement[] {
   return roomTypes.map((type) => {
-    const defaults = ROOM_DEFAULTS[type] ?? {
-      width: 4,
-      depth: 4,
-    };
+    const defaults = Object.prototype.hasOwnProperty.call(ROOM_DEFAULTS, type)
+      ? ROOM_DEFAULTS[type]
+      : {
+          width: 4,
+          depth: 4,
+        };
     return {
       type,
       width: defaults.width,

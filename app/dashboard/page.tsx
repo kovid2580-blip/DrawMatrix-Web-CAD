@@ -175,10 +175,11 @@ const Dashboard = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {recentProjects.map((p) => {
-              const projectId = p.projectId || p.id;
-              const projectPresence = projectId
-                ? presenceData[projectId] || {}
-                : {};
+              const projectId =
+                [p.projectId, p.id].find(
+                  (value): value is string => typeof value === "string"
+                ) || "";
+              const projectPresence = presenceData[projectId];
               const members = Object.values(projectPresence);
 
               return (
@@ -219,7 +220,7 @@ const Dashboard = () => {
                             p.createdAt ||
                             Date.now()
                         ).toLocaleDateString()}
-                        {!!members.length && (
+                        {members.length > 0 && (
                           <span className="text-cyan-500 ml-auto flex items-center gap-0.5 font-bold">
                             <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />
                             {members.length} Active

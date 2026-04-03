@@ -74,6 +74,7 @@ interface ToolButtonProps {
 }
 
 type ObjectProperties = ThreeObject["properties"];
+type SetTool = React.Dispatch<React.SetStateAction<string>>;
 
 const ToolButton = ({
   icon,
@@ -122,7 +123,7 @@ const Ribbon = ({
   setTool,
 }: {
   activeTool: string;
-  setTool: (tool: string) => void;
+  setTool: SetTool;
 }) => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Home");

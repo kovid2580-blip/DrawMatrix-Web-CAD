@@ -11,11 +11,11 @@ interface ZegoMeetingRoomProps {
 
 const createUserId = () => `user-${Math.random().toString(36).slice(2, 10)}`;
 
-export default function ZegoMeetingRoom({
+const ZegoMeetingRoom = ({
   roomId,
   displayName,
   onLeaveRoom,
-}: ZegoMeetingRoomProps) {
+}: ZegoMeetingRoomProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const meetingRef = useRef<{ destroy: () => void } | null>(null);
   const onLeaveRoomRef = useRef(onLeaveRoom);
@@ -59,7 +59,7 @@ export default function ZegoMeetingRoom({
 
         const container = containerRef.current;
 
-        if (isCancelled || !container || !container.isConnected) return;
+        if (isCancelled || !container.isConnected) return;
 
         const token = ZegoUIKitPrebuilt.generateKitTokenForTest(
           appId,
@@ -182,4 +182,6 @@ export default function ZegoMeetingRoom({
       />
     </div>
   );
-}
+};
+
+export default ZegoMeetingRoom;

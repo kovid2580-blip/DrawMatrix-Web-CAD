@@ -21,7 +21,7 @@ export const CommandBar = () => {
 
 export const StatusBar = () => {
   const localCursor = useThreeStore((s) => s.localCursor as CursorPosition);
-  const [x, y, z] = localCursor || [0, 0, 0];
+  const [x, y, z] = localCursor;
 
   return (
     <div className="h-6 bg-[#1f2023] border-t border-gray-700 flex items-center justify-between px-2 text-[10px] text-gray-400 select-none">

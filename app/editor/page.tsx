@@ -24,7 +24,7 @@ const ThreeLayer = dynamic(() => import("@/components/editor/three-layer"), {
   ),
 });
 
-export default function EditorPage() {
+const EditorPage = () => {
   const [tool, setTool] = useState("line");
   const searchParams = useSearchParams();
   const {
@@ -82,7 +82,15 @@ export default function EditorPage() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setSelectedObjectId, undo, redo, toggleAI, setAIOpen]);
+  }, [
+    deleteObject,
+    projectId,
+    setSelectedObjectId,
+    undo,
+    redo,
+    toggleAI,
+    setAIOpen,
+  ]);
 
   useEffect(() => {
     const isNew = searchParams.get("new") === "true";
@@ -190,4 +198,6 @@ export default function EditorPage() {
       <AIPromptPanel />
     </div>
   );
-}
+};
+
+export default EditorPage;

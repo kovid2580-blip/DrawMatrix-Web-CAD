@@ -53,20 +53,26 @@ type DraftingObjectProps = {
   obj: ThreeObject;
   layer?: Layer;
   isSelected: boolean;
-  onClick: (event: ThreeEvent<MouseEvent>) => void;
+  onClick: ClickHandler;
 };
 
 type CADObjectProps = {
   obj: ThreeObject;
   isSelected: boolean;
-  onSelect: (id: string | null) => void;
-  setRef: (mesh: THREE.Mesh | null) => void;
+  onSelect: SelectHandler;
+  setRef: React.Dispatch<React.SetStateAction<THREE.Mesh | null>>;
   activeTool: string;
 };
 
 type PresenceSocketPayload = UserPresence & {
   userId: string;
 };
+
+type SetTool = React.Dispatch<React.SetStateAction<string>>;
+// eslint-disable-next-line no-unused-vars
+type ClickHandler = (..._args: [ThreeEvent<MouseEvent>]) => void;
+// eslint-disable-next-line no-unused-vars
+type SelectHandler = (..._args: [string | null]) => void;
 
 const DraftingObject = ({
   obj,
@@ -324,8 +330,6 @@ const CADObject = ({
     );
   }
 
-  if (!obj.type) return null;
-
   // Render 3D Primitives (fallback for non-parametric)
   return (
     <mesh {...commonProps}>
@@ -357,7 +361,7 @@ const ThreeScene = ({
 }: {
   transformMode: "translate" | "rotate" | "scale";
   activeTool: string;
-  setTool: (tool: string) => void;
+  setTool: SetTool;
 }) => {
   const {
     objects,
@@ -771,6 +775,7 @@ const ThreeScene = ({
     addObject,
     updateObject,
     objects,
+    projectId,
     setTool,
     cinematicMode,
   ]);
@@ -922,13 +927,13 @@ const ThreeScene = ({
   );
 };
 
-export default function ThreeLayer({
+const ThreeLayer = ({
   activeTool,
   setTool,
 }: {
   activeTool: string;
-  setTool: (tool: string) => void;
-}) {
+  setTool: SetTool;
+}) => {
   const {
     selectedObjectId,
     setSelectedObjectId,
@@ -958,11 +963,9 @@ export default function ThreeLayer({
         ) : (
           <OrthographicCamera
             makeDefault
-            position={viewMode === "2D" ? [0, 20, 0] : [20, 0, 0]}
+            position={[0, 20, 0]}
             zoom={40}
-            rotation={
-              viewMode === "2D" ? [-Math.PI / 2, 0, 0] : [0, Math.PI / 2, 0]
-            }
+            rotation={[-Math.PI / 2, 0, 0]}
             far={100000}
           />
         )}
@@ -1032,4 +1035,6 @@ export default function ThreeLayer({
       </div>
     </div>
   );
-}
+};
+
+export default ThreeLayer;
