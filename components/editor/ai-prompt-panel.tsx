@@ -112,7 +112,7 @@ export const AIPromptPanel = () => {
         let objects;
         const engineUrl = process.env.NEXT_PUBLIC_CAD_ENGINE_URL;
 
-        if (engineUrl && !engineUrl.includes("your-ngrok-url")) {
+        if (engineUrl) {
           // Try external engine (Colab) first
           objects = await generateFromExternalEngine(prompt, activeLayerId);
           if (objects.length === 0) {

@@ -1,5 +1,5 @@
 export const CAD_ENGINE_URL =
-  "https://supersafely-subconcave-madie.ngrok-free.dev";
+  process.env.NEXT_PUBLIC_CAD_ENGINE_URL || "http://localhost:5000";
 
 export async function fetchRemoteCADObjects(
   prompt: string,

@@ -10,10 +10,13 @@ Collaborative architectural drafting and CAD workspace built with Next.js, Zusta
    `npm install`
 3. Copy [`.env.example`](./.env.example) to `.env.local` for the frontend.
 4. Copy [`server/.env.example`](../server/.env.example) to `server/.env`.
-5. Start the backend:
+5. Start everything from the workspace root:
    `npm run dev`
-6. Start the frontend:
-   `npm run dev`
+
+Local development runs:
+- frontend on `http://localhost:3000`
+- backend on `http://localhost:3001`
+- CAD engine on `http://localhost:5000`
 
 ## Deployment
 
@@ -35,6 +38,9 @@ Collaborative architectural drafting and CAD workspace built with Next.js, Zusta
   `NEXT_PUBLIC_ZEGO_APP_ID`
   `NEXT_PUBLIC_ZEGO_SERVER_SECRET`
   `NEXT_PUBLIC_CAD_ENGINE_URL`
+
+For local development, the default CAD engine endpoint is:
+`http://localhost:5000`
 
 ### Backend
 

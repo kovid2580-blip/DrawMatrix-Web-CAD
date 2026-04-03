@@ -247,8 +247,7 @@ function commandToThreeObject(
 
 /**
  * Convert an array of DrawCommands into ThreeObjects.
- * If NEXT_PUBLIC_CAD_ENGINE_URL is defined, this could be extended to
- * fetch objects from an external Colab-hosted engine.
+ * If NEXT_PUBLIC_CAD_ENGINE_URL is defined, try the local CAD engine first.
  */
 export function generateObjects(
   commands: DrawCommand[],
@@ -266,14 +265,14 @@ export function generateObjects(
 }
 
 /**
- * Example function to fetch from External Colab Engine
+ * Fetch objects from the configured CAD engine.
  */
 export async function generateFromExternalEngine(
   prompt: string,
   layerId: string
 ): Promise<ThreeObject[]> {
   const engineUrl = process.env.NEXT_PUBLIC_CAD_ENGINE_URL;
-  if (!engineUrl || engineUrl.includes("your-ngrok-url")) {
+  if (!engineUrl) {
     console.warn("External CAD Engine URL not configured.");
     return [];
   }
