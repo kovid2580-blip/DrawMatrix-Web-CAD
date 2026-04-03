@@ -16,6 +16,10 @@ import {
   Video,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import {
+  getLocalProjects,
+  normalizeProjectListPayload,
+} from "@/lib/project-storage";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -25,24 +29,34 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.user?.email) {
-      if (session) setLoading(false);
-      return;
-    }
-
     const fetchRecent = async () => {
+      const loadLocalProjects = () => {
+        setRecentProjects(getLocalProjects().slice(0, 3));
+        setLoading(false);
+      };
+
+      if (!session?.user?.email) {
+        loadLocalProjects();
+        return;
+      }
+
       try {
-        const res = await fetch(`/api/projects?ownerEmail=${session?.user?.email}`);
+        const res = await fetch(
+          `/api/projects?ownerEmail=${session?.user?.email}`
+        );
         if (res.ok) {
-          const cloudProjects = await res.json();
+          const payload = await res.json();
+          const cloudProjects = normalizeProjectListPayload(payload);
           // Take top 3
           setRecentProjects(cloudProjects.slice(0, 3));
+          setLoading(false);
+          return;
         }
       } catch (err) {
         console.error("Failed to fetch recent projects:", err);
-      } finally {
-        setLoading(false);
       }
+
+      loadLocalProjects();
     };
 
     const fetchPresence = async () => {
@@ -58,7 +72,7 @@ export default function Dashboard() {
 
     fetchRecent();
     fetchPresence();
-    
+
     // Poll presence every 10s
     const pInterval = setInterval(fetchPresence, 10000);
     return () => clearInterval(pInterval);
@@ -143,22 +157,23 @@ export default function Dashboard() {
               <Clock className="w-4 h-4" />
               Recent Work
             </h2>
-            <button 
-              onClick={() => router.push('/dashboard/projects')}
+            <button
+              onClick={() => router.push("/dashboard/projects")}
               className="text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
             >
               View All
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {recentProjects.map((p, idx) => {
-              const projectPresence = presenceData[p.projectId] || {};
+            {recentProjects.map((p) => {
+              const projectId = p.projectId || p.id;
+              const projectPresence = presenceData[projectId] || {};
               const members = Object.values(projectPresence);
 
               return (
                 <div
-                  key={p.projectId}
-                  onClick={() => router.push(`/editor?projectId=${p.projectId}`)}
+                  key={projectId}
+                  onClick={() => router.push(`/editor?projectId=${projectId}`)}
                   className="group relative p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 hover:bg-white/[0.05] transition-all cursor-pointer overflow-hidden shadow-2xl"
                 >
                   <div className="relative z-10 flex flex-col gap-3">
@@ -166,7 +181,7 @@ export default function Dashboard() {
                       <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
                         <FileText size={16} />
                       </div>
-                      
+
                       {/* Active Members Avatars */}
                       <div className="flex -space-x-1.5 overflow-hidden">
                         {members.map((m: any, i) => (
@@ -186,7 +201,13 @@ export default function Dashboard() {
                         {p.name}
                       </h4>
                       <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
-                        Edited {new Date(p.updatedAt).toLocaleDateString()}
+                        Edited{" "}
+                        {new Date(
+                          p.lastModified ||
+                            p.updatedAt ||
+                            p.createdAt ||
+                            Date.now()
+                        ).toLocaleDateString()}
                         {members.length > 0 && (
                           <span className="text-cyan-500 ml-auto flex items-center gap-0.5 font-bold">
                             <div className="w-1 h-1 rounded-full bg-cyan-500 animate-pulse" />

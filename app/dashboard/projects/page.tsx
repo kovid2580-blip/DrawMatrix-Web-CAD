@@ -3,6 +3,12 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Clock, FileText, Loader2, Save } from "lucide-react";
+import {
+  deleteLocalProject,
+  getLocalProjects,
+  normalizeProjectListPayload,
+  renameLocalProject,
+} from "@/lib/project-storage";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -11,22 +17,30 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.user?.email) {
-      if (session) setLoading(false);
-      return;
-    }
-
     const fetchProjects = async () => {
+      const loadLocalProjects = () => {
+        setProjects(getLocalProjects());
+        setLoading(false);
+      };
+
+      if (!session?.user?.email) {
+        loadLocalProjects();
+        return;
+      }
+
       try {
-        const res = await fetch(`/api/projects?ownerEmail=${session?.user?.email}`);
+        const res = await fetch(
+          `/api/projects?ownerEmail=${session?.user?.email}`
+        );
         if (res.ok) {
-          const cloudProjects = await res.json();
+          const payload = await res.json();
+          const cloudProjects = normalizeProjectListPayload(payload);
           if (cloudProjects && cloudProjects.length > 0) {
-            // Map MongoDB schema to what the UI expects
             const mapped = cloudProjects.map((p: any) => ({
-              id: p.projectId,
+              id: p.projectId || p.id,
               name: p.name,
-              lastModified: p.updatedAt || p.createdAt
+              content: p.content || "",
+              lastModified: p.lastModified || p.updatedAt || p.createdAt,
             }));
             setProjects(mapped);
             setLoading(false);
@@ -37,18 +51,7 @@ export default function ProjectsPage() {
         console.error("Cloud fetch failed, falling back to local:", err);
       }
 
-      // Fallback to local storage if cloud is empty or failed
-      const saved = localStorage.getItem("dm_projects");
-      if (saved) {
-        setProjects(
-          JSON.parse(saved).sort(
-            (a: any, b: any) =>
-              new Date(b.lastModified).getTime() -
-              new Date(a.lastModified).getTime()
-          )
-        );
-      }
-      setLoading(false);
+      loadLocalProjects();
     };
 
     fetchProjects();
@@ -72,31 +75,58 @@ export default function ProjectsPage() {
 
   const handleDelete = async (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this project? This will remove all drawing data, schedules, and messages permanently.")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this project? This will remove all drawing data, schedules, and messages permanently."
+      )
+    )
+      return;
+
+    deleteLocalProject(projectId);
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+
+    if (!session?.user?.email) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setProjects(prev => prev.filter(p => p.id !== projectId));
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        console.error("Cloud delete failed with status:", res.status);
       }
     } catch (err) {
       console.error("Delete failed:", err);
     }
   };
 
-  const handleRename = async (e: React.MouseEvent, projectId: string, currentName: string) => {
+  const handleRename = async (
+    e: React.MouseEvent,
+    projectId: string,
+    currentName: string
+  ) => {
     e.stopPropagation();
     const newName = window.prompt("Enter new project name:", currentName);
     if (!newName || newName === currentName) return;
 
+    renameLocalProject(projectId, newName);
+    setProjects((prev) =>
+      prev.map((p) => (p.id === projectId ? { ...p, name: newName } : p))
+    );
+
+    if (!session?.user?.email) {
+      return;
+    }
+
     try {
       const res = await fetch(`/api/projects/${projectId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
       });
-      if (res.ok) {
-        setProjects(prev => prev.map(p => p.id === projectId ? { ...p, name: newName } : p));
+      if (!res.ok) {
+        console.error("Cloud rename failed with status:", res.status);
       }
     } catch (err) {
       console.error("Rename failed:", err);
@@ -130,7 +160,9 @@ export default function ProjectsPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 grayscale opacity-50">
             <Loader2 className="w-10 h-10 animate-spin text-orange-500 mb-4" />
-            <p className="text-sm font-medium tracking-widest uppercase text-slate-500">Connecting to Cloud...</p>
+            <p className="text-sm font-medium tracking-widest uppercase text-slate-500">
+              Connecting to Cloud...
+            </p>
           </div>
         ) : projects.length === 0 ? (
           <div className="py-20 text-center border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
@@ -154,14 +186,14 @@ export default function ProjectsPage() {
                 onClick={() => router.push(`/editor?projectId=${p.id}`)}
               >
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                   <button 
+                  <button
                     onClick={(e) => handleRename(e, p.id, p.name)}
                     className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                     title="Rename"
                   >
                     <FileText size={14} />
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => handleDelete(e, p.id)}
                     className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors"
                     title="Delete"

@@ -122,7 +122,7 @@ const CADObject = ({
   const layers = useThreeStore((s) => s.layers);
   const presences = useThreeStore((s) => s.presences);
   const isDragging = useThreeStore((s) => s.isDragging);
-  
+
   // Architectural Special Handling (Parametric) - Moved to top level
   const geometry = useMemo(() => {
     switch (obj.type) {
@@ -180,13 +180,19 @@ const CADObject = ({
   const quaternion = new THREE.Quaternion(...obj.transform.rotation);
   const scale = new THREE.Vector3(...obj.transform.scale);
 
-  const lockingUser = obj.lockedBy ? Object.values(presences).find(p => p.id === obj.lockedBy) : null;
+  const lockingUser = obj.lockedBy
+    ? Object.values(presences).find((p) => p.id === obj.lockedBy)
+    : null;
   const lockColor = lockingUser?.color || "#444";
 
   const material = (
     <meshStandardMaterial
       color={
-        isSelected ? "#ffcc00" : isLocked ? lockColor : layer?.color || obj.color
+        isSelected
+          ? "#ffcc00"
+          : isLocked
+            ? lockColor
+            : layer?.color || obj.color
       }
       opacity={isLocked ? 0.6 : 1}
       transparent={isLocked}
@@ -249,7 +255,7 @@ const CADObject = ({
         </Html>
         {isLocked && lockingUser && (
           <Html position={[0, (obj.properties.height || 1) + 0.5, 0]} center>
-            <div 
+            <div
               className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
               style={{ backgroundColor: lockColor }}
             >
@@ -276,7 +282,7 @@ const CADObject = ({
         {material}
         {isLocked && lockingUser && (
           <Html position={[0, (obj.properties.height || 1) + 0.5, 0]} center>
-            <div 
+            <div
               className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
               style={{ backgroundColor: lockColor }}
             >
@@ -302,7 +308,7 @@ const CADObject = ({
       {material}
       {isLocked && lockingUser && (
         <Html position={[0, 1.5, 0]} center>
-          <div 
+          <div
             className="px-2 py-0.5 rounded-full text-[9px] font-bold text-white shadow-xl flex items-center gap-1 border border-white/20"
             style={{ backgroundColor: lockColor }}
           >
@@ -398,71 +404,90 @@ const ThreeScene = ({
     [gridSpacing]
   );
 
-    const { projectId, setObjects, setLayers } = useThreeStore();
+  const { projectId, setObjects, setLayers } = useThreeStore();
 
-    // STABILITY RULE: Operational WebSocket Listeners
-    useEffect(() => {
-        socket.connect();
+  // STABILITY RULE: Operational WebSocket Listeners
+  useEffect(() => {
+    socket.connect();
 
-        if (projectId) {
-            socket.emit("join_project", { 
-                projectId, 
-                userId: USER_ID, 
-                username: USER_NAME 
-            });
+    if (projectId) {
+      socket.emit("join_project", {
+        projectId,
+        userId: USER_ID,
+        username: USER_NAME,
+      });
+    }
+
+    socket.on("load_project", (data) => {
+      if (data.objects) setObjects(data.objects);
+      if (data.layers) setLayers(data.layers);
+      if (data.projectName)
+        useThreeStore.setState({ projectName: data.projectName });
+      useThreeStore.getState().resetHistory();
+    });
+
+    socket.on("create_object", ({ payload }) => {
+      addObject(payload, { recordHistory: false });
+    });
+    socket.on("delete_object", ({ objectId }) => {
+      deleteObject(objectId, { recordHistory: false });
+    });
+    socket.on("transform_object", ({ objectId, payload }) => {
+      // Throttled logging to avoid console lag
+      // console.log(`[Socket] Remote Transform: ${objectId}`);
+      updateObject(
+        objectId,
+        { transform: payload.transform },
+        { recordHistory: false }
+      );
+    });
+    socket.on("update_property", ({ objectId, payload }) =>
+      updateObject(
+        objectId,
+        { properties: payload.properties },
+        { recordHistory: false }
+      )
+    );
+
+    socket.on("presence-update", (data) =>
+      updatePresence(data.userId, data.presence)
+    );
+    socket.on("room_presence_list", (list) => {
+      Object.entries(list).forEach(([sid, presence]: [string, any]) => {
+        updatePresence(presence.userId, presence);
+      });
+    });
+    socket.on("presence-disconnect", (userId) => removePresence(userId));
+    socket.on("replace_geometry", ({ objectId, geometryData }) =>
+      updateObject(objectId, { geometryData }, { recordHistory: false })
+    );
+    socket.on("lock_object", ({ objectId, userId }) =>
+      updateObject(objectId, { lockedBy: userId }, { recordHistory: false })
+    );
+    socket.on("unlock_object", ({ objectId }) =>
+      updateObject(objectId, { lockedBy: null }, { recordHistory: false })
+    );
+    socket.on("unlock_all_by_user", ({ userId }) => {
+      useThreeStore.getState().objects.forEach((obj) => {
+        if (obj.lockedBy === userId) {
+          updateObject(obj.id, { lockedBy: null }, { recordHistory: false });
         }
+      });
+    });
 
-        socket.on("load_project", (data) => {
-            if (data.objects) setObjects(data.objects);
-            if (data.layers) setLayers(data.layers);
-            if (data.projectName) useThreeStore.setState({ projectName: data.projectName });
-        });
-
-        socket.on("create_object", ({ payload }) => {
-            addObject(payload);
-        });
-        socket.on("delete_object", ({ objectId }) => {
-            deleteObject(objectId);
-        });
-        socket.on("transform_object", ({ objectId, payload }) => {
-            // Throttled logging to avoid console lag
-            // console.log(`[Socket] Remote Transform: ${objectId}`);
-            updateObject(objectId, { transform: payload.transform });
-        });
-        socket.on("update_property", ({ objectId, payload }) =>
-            updateObject(objectId, { properties: payload.properties })
-        );
-
-        socket.on("presence-update", (data) =>
-            updatePresence(data.userId, data.presence)
-        );
-        socket.on("room_presence_list", (list) => {
-            Object.entries(list).forEach(([sid, presence]: [string, any]) => {
-                updatePresence(presence.userId, presence);
-            });
-        });
-        socket.on("presence-disconnect", (userId) => removePresence(userId));
-        socket.on("replace_geometry", ({ objectId, geometryData }) =>
-            updateObject(objectId, { geometryData })
-        );
-        socket.on("lock_object", ({ objectId, userId }) =>
-            updateObject(objectId, { lockedBy: userId })
-        );
-        socket.on("unlock_object", ({ objectId }) =>
-            updateObject(objectId, { lockedBy: null })
-        );
-        socket.on("unlock_all_by_user", ({ userId }) => {
-            useThreeStore.getState().objects.forEach(obj => {
-                if (obj.lockedBy === userId) {
-                    updateObject(obj.id, { lockedBy: null });
-                }
-            });
-        });
-
-        return () => {
-            socket.disconnect();
-        };
-    }, [projectId, addObject, deleteObject, updateObject, updatePresence, removePresence, setObjects, setLayers]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [
+    projectId,
+    addObject,
+    deleteObject,
+    updateObject,
+    updatePresence,
+    removePresence,
+    setObjects,
+    setLayers,
+  ]);
 
   // Cursor tracking
   const handleTransformChange = useCallback(
@@ -813,11 +838,18 @@ const ThreeScene = ({
             mode={transformMode}
             onMouseDown={() => {
               setIsDragging(true);
-              socket.emit("lock_object", { projectId, objectId: selectedObjectId, userId: USER_ID });
+              socket.emit("lock_object", {
+                projectId,
+                objectId: selectedObjectId,
+                userId: USER_ID,
+              });
             }}
             onMouseUp={() => {
               setIsDragging(false);
-              socket.emit("unlock_object", { projectId, objectId: selectedObjectId });
+              socket.emit("unlock_object", {
+                projectId,
+                objectId: selectedObjectId,
+              });
               handleTransformChange(true);
             }}
             onChange={() => {

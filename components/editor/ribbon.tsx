@@ -68,6 +68,7 @@ import { ThreeObject, ThreeObjectType, useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
 import { socket } from "@/lib/socket";
 import { useCall } from "@/providers/CallContext";
+import { saveLocalProject } from "@/lib/project-storage";
 
 const generateUUID = () =>
   Math.random().toString(36).substring(2, 15) +
@@ -164,51 +165,44 @@ const Ribbon = ({
   }, [autoSaveInterval, projectId, projectName]);
 
   const handleSave = async () => {
-    if (!projectId || !session?.user?.email) return;
+    if (!projectId) return;
 
     const snapshot = getSnapshot();
-    const projectData = {
-      projectId,
-      name: projectName || "Untitled Project",
-      ownerEmail: session.user.email,
-      objects: snapshot, // The store returns the objects array
-      layers: [], // Not yet implemented in store snapshot but model supports
-      config: {
-        unitSystem: "metric",
-        gridSpacing: 1
-      }
-    };
+    const timestamp = new Date().toISOString();
 
-    try {
-      const res = await fetch(`/api/projects/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectData)
-      });
-      if (res.ok) {
-        console.log("[Cloud] Project saved successfully to MongoDB");
+    if (session?.user?.email) {
+      const projectData = {
+        projectId,
+        name: projectName || "Untitled Project",
+        ownerEmail: session.user.email,
+        objects: snapshot,
+        layers: [],
+        config: {
+          unitSystem: "metric",
+          gridSpacing: 1,
+        },
+      };
+
+      try {
+        const res = await fetch(`/api/projects/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(projectData),
+        });
+        if (res.ok) {
+          console.log("[Cloud] Project saved successfully to MongoDB");
+        }
+      } catch (err) {
+        console.error("[Cloud] Failed to save project:", err);
       }
-    } catch (err) {
-      console.error("[Cloud] Failed to save project:", err);
     }
 
-    // Still update local storage for quick access while transitioning
-    const projects = JSON.parse(localStorage.getItem("dm_projects") || "[]");
-    const timestamp = new Date().toISOString();
-    const projectIndex = projects.findIndex((p: any) => p.id === projectId);
-    const localProjectData = {
+    saveLocalProject({
       id: projectId,
-      name: projectName,
+      name: projectName || "Untitled Project",
       content: snapshot,
       lastModified: timestamp,
-    };
-
-    if (projectIndex > -1) {
-      projects[projectIndex] = localProjectData;
-    } else {
-      projects.push(localProjectData);
-    }
-    localStorage.setItem("dm_projects", JSON.stringify(projects));
+    });
   };
 
   const handleSetAutoSave = () => {
@@ -350,7 +344,9 @@ const Ribbon = ({
             </div>
           ))}
           {Object.keys(presences).length === 0 && (
-            <div className="text-[9px] text-gray-500 italic">No one else here</div>
+            <div className="text-[9px] text-gray-500 italic">
+              No one else here
+            </div>
           )}
         </div>
 
@@ -646,7 +642,12 @@ const Ribbon = ({
               <div className="flex items-center space-x-1">
                 <ToolButton icon={<Settings size={18} />} label="Project" />
                 <ToolButton
-                  icon={<Video size={18} className={inCall ? "text-cyan-400" : ""} />}
+                  icon={
+                    <Video
+                      size={18}
+                      className={inCall ? "text-cyan-400" : ""}
+                    />
+                  }
                   label={inCall ? "Leave Meet" : "Join Meet"}
                   onClick={() => {
                     if (inCall) leaveCall();

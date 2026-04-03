@@ -6,13 +6,14 @@ import dynamic from "next/dynamic";
 import { Triangle } from "lucide-react";
 
 import Ribbon from "@/components/editor/ribbon";
-import { CommandBar, StatusBar } from "@/components/editor/bottom-bar";
+import { StatusBar } from "@/components/editor/bottom-bar";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { AIPromptPanel } from "@/components/editor/ai-prompt-panel";
 import { LayerManager } from "@/components/editor/layer-manager";
-import { useThreeStore } from "@/store";
+import { DEFAULT_LAYER_ID, useThreeStore } from "@/store";
 import { useAIStore } from "@/store/ai-store";
 import { socket } from "@/lib/socket";
+import { getLocalProjectById } from "@/lib/project-storage";
 
 const ThreeLayer = dynamic(() => import("@/components/editor/three-layer"), {
   ssr: false,
@@ -33,6 +34,7 @@ export default function EditorPage() {
     setLayers,
     setActiveLayer,
     setSelectedObjectId,
+    resetHistory,
     undo,
     redo,
     projectId,
@@ -69,7 +71,10 @@ export default function EditorPage() {
       // Delete Handling
       if (e.key === "Delete" || e.key === "Backspace") {
         const selectedId = useThreeStore.getState().selectedObjectId;
-        if (selectedId && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) {
+        if (
+          selectedId &&
+          !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")
+        ) {
           deleteObject(selectedId);
           socket.emit("delete_object", { projectId, objectId: selectedId });
         }
@@ -88,12 +93,61 @@ export default function EditorPage() {
         window.prompt("Enter a name for your new sheet:", "Untitled Sheet") ||
         "Untitled Sheet";
       const newId = Math.random().toString(36).substring(2, 9);
+      setObjects([]);
+      setLayers([
+        {
+          id: DEFAULT_LAYER_ID,
+          name: "Default",
+          visible: true,
+          locked: false,
+          color: "#ffffff",
+          order: 0,
+        },
+      ]);
+      setActiveLayer(DEFAULT_LAYER_ID);
       setProjectInfo(newId, name);
+      resetHistory();
     } else if (pid) {
-      // Just set the ID, let the socket in ThreeLayer handle the loading from DB
+      const localProject = getLocalProjectById(pid);
+      if (localProject) {
+        try {
+          const parsed = JSON.parse(localProject.content);
+          setObjects(Array.isArray(parsed.objects) ? parsed.objects : []);
+          setLayers(
+            Array.isArray(parsed.layers) && parsed.layers.length > 0
+              ? parsed.layers
+              : [
+                  {
+                    id: DEFAULT_LAYER_ID,
+                    name: "Default",
+                    visible: true,
+                    locked: false,
+                    color: "#ffffff",
+                    order: 0,
+                  },
+                ]
+          );
+          setActiveLayer(parsed.activeLayerId || DEFAULT_LAYER_ID);
+          setProjectInfo(pid, localProject.name || "Untitled Sheet");
+          resetHistory();
+          return;
+        } catch (error) {
+          console.error("Failed to restore local project snapshot:", error);
+        }
+      }
+
+      // Fall back to the realtime backend load path when local data is unavailable.
       setProjectInfo(pid, projectName || "Loading...");
     }
-  }, [searchParams, setProjectInfo, setObjects, setLayers, setActiveLayer]);
+  }, [
+    searchParams,
+    setProjectInfo,
+    setObjects,
+    setLayers,
+    setActiveLayer,
+    resetHistory,
+    projectName,
+  ]);
 
   return (
     <div className="flex flex-col h-screen bg-[#2b2d30] text-gray-200 overflow-hidden font-sans">
