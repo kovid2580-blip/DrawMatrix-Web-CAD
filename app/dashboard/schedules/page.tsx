@@ -70,6 +70,7 @@ type FeedMessage = {
   user: string;
   text: string;
   time: string;
+  createdAt?: string;
 };
 
 type PresencePayload = {
@@ -83,6 +84,43 @@ const FALLBACK_MESSAGE: FeedMessage = {
   user: "System",
   text: "Welcome to the project feed!",
   time: "09:00 AM",
+  createdAt: new Date().toISOString(),
+};
+
+const formatMessageDate = (createdAt?: string) => {
+  if (!createdAt) {
+    return "-";
+  }
+
+  const parsedDate = new Date(createdAt);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "-";
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const messageDay = new Date(
+    parsedDate.getFullYear(),
+    parsedDate.getMonth(),
+    parsedDate.getDate()
+  );
+  const dayDiff = Math.round(
+    (today.getTime() - messageDay.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (dayDiff === 0) {
+    return "Today";
+  }
+
+  if (dayDiff === 1) {
+    return "Yesterday";
+  }
+
+  return parsedDate.toLocaleDateString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const SchedulesPage = () => {
@@ -331,6 +369,7 @@ const SchedulesPage = () => {
         hour: "2-digit",
         minute: "2-digit",
       }),
+      createdAt: new Date().toISOString(),
     };
 
     socket.emit("send_message", message);
@@ -588,6 +627,9 @@ const SchedulesPage = () => {
                   <tr>
                     <th className="w-24 px-4 py-2 text-left font-bold">User</th>
                     <th className="px-4 py-2 text-left font-bold">Message</th>
+                    <th className="w-32 px-4 py-2 text-right font-bold">
+                      Date
+                    </th>
                     <th className="w-24 px-4 py-2 text-right font-bold">
                       Time
                     </th>
@@ -615,6 +657,9 @@ const SchedulesPage = () => {
                         </td>
                         <td className="max-w-[150px] break-words px-4 py-3 text-slate-200">
                           {message.text}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[10px] tabular-nums text-slate-500 align-top">
+                          {formatMessageDate(message.createdAt)}
                         </td>
                         <td className="px-4 py-3 text-right text-[10px] tabular-nums text-slate-500 align-top">
                           {message.time}
