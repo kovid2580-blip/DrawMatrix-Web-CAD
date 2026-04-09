@@ -70,4 +70,4 @@ The frontend expects the backend to serve:
 
 The frontend build now fails on real lint/type errors instead of skipping them.
 
-[imagealt!](ChatGPT Image Apr 9, 2026, 09_33_13 AM.png)
+![image alt](ChatGPT Image Apr 9, 2026, 09_33_13 AM.png)
