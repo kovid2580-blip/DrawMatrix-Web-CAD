@@ -70,4 +70,4 @@ The frontend expects the backend to serve:
 
 The frontend build now fails on real lint/type errors instead of skipping them.
 
-![image alt](ChatGPT Image Apr 9, 2026, 09_33_13 AM.png)
+![image alt](https://github.com/kovid2580-blip/DrawMatrix-Web-CAD/blob/38909aa2776a415f4372aa554a585f7dccece298/ChatGPT%20Image%20Apr%209%2C%202026%2C%2009_33_13%20AM.png))
